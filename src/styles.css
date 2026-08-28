@@ -117,6 +117,11 @@ kbd { font: 500 8px 'JetBrains Mono'; color: #5b681e; padding-left: 6px; border-
 .how-it-works h3 { margin: 1px 0 7px; font-size: 12px; color: #dce1e9; }
 .how-it-works p { margin: 0; color: #687284; font-size: 11px; line-height: 1.55; }
 footer { min-height: 65px; border-top: 1px solid #1a202a; padding: 0 max(5.5vw, 20px); display: flex; align-items: center; justify-content: space-between; color: #4f5868; font-size: 10px; }
+.footer-links { display: flex; align-items: center; gap: 7px; }
+.footer-links a { color: #778294; text-decoration: none; transition: color .15s; }
+.footer-links a:first-child { color: #b6d268; }
+.footer-links a:hover { color: var(--accent); }
+.footer-links i { width: 3px; height: 3px; border-radius: 50%; background: #3d4655; }
 
 /* Multi-request workspace */
 .workspace-page-shell { height: 100vh; display: grid; grid-template-rows: 58px 47px minmax(0, 1fr); overflow: hidden; background: #090c12; }

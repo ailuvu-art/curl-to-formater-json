@@ -323,7 +323,7 @@ function WorkspacePage() {
     <header className="workspace-topbar">
       <a className="brand" href="/" aria-label="CurlLens home"><span className="brand-mark"><Braces size={19} strokeWidth={2.4} /></span><span>Curl<span>Lens</span></span></a>
       <div className="workspace-title"><span>Workspace</span><i />{tabs.length} {tabs.length === 1 ? 'request' : 'requests'}</div>
-      <div className="workspace-nav"><a href="/"><Home size={14} /> Home</a><a href="https://github.com/ailuvu-art/curl-to-formater-json" target="_blank" rel="noreferrer"><Github size={15} /></a></div>
+      <div className="workspace-nav"><a href="/"><Home size={14} /> Home</a><a href="https://buymeacoffee.com/nolann25" target="_blank" rel="noreferrer">Buy me a coffee</a><a href="https://github.com/ailuvu-art/curl-to-formater-json" target="_blank" rel="noreferrer" aria-label="GitHub repository"><Github size={15} /></a></div>
     </header>
 
     <div className="request-tabs-bar">
@@ -573,7 +573,10 @@ function LandingPage() {
         </section>
       </main>
 
-      <footer><span>Built for developers who value focus.</span><span>Your request data never touches our servers.</span></footer>
+      <footer>
+        <span>Built for developers who value focus.</span>
+        <span className="footer-links"><a href="https://buymeacoffee.com/nolann25" target="_blank" rel="noreferrer">Buy me a coffee</a><i /> Signed by <a href="https://github.com/nolann-dev" target="_blank" rel="noreferrer">nolann</a></span>
+      </footer>
     </Box>
   )
 }
