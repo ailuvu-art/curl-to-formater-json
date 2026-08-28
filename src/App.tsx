@@ -12,9 +12,12 @@ import {
   Copy,
   FileText,
   Github,
+  Home,
   Network,
   Play,
+  Plus,
   RotateCcw,
+  Trash2,
   Search,
   ShieldCheck,
   WrapText,
@@ -29,14 +32,27 @@ type CurlRequest = {
   body?: string
 }
 
-type ResponseState = {
+type ResponseResult = {
   status: number
   statusText: string
   duration: number
   size: number
   data: unknown
   raw: string
-} | null
+}
+
+type ResponseState = ResponseResult | null
+
+type WorkspaceTab = {
+  id: string
+  name: string
+  curl: string
+  response: ResponseState
+  error: string
+  loading: boolean
+  viewMode: ViewMode
+  collapsedPaths: string[]
+}
 
 const EXAMPLE_CURL = `curl 'https://jsonplaceholder.typicode.com/users/1' \\
   -H 'Accept: application/json'`
@@ -174,7 +190,185 @@ function syntaxHighlight(json: string) {
   return parts
 }
 
-function App() {
+function createWorkspaceTab(index: number): WorkspaceTab {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    name: `Request ${index}`,
+    curl: index === 1 ? EXAMPLE_CURL : '',
+    response: null,
+    error: '',
+    loading: false,
+    viewMode: 'tree',
+    collapsedPaths: [],
+  }
+}
+
+async function executeCurl(curl: string): Promise<ResponseResult> {
+  const request = parseCurl(curl)
+  const started = performance.now()
+  const result = await fetch(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body,
+  })
+  const raw = await result.text()
+  const duration = Math.round(performance.now() - started)
+  let data: unknown = raw
+  try { data = JSON.parse(raw) } catch { /* Keep non-JSON responses readable. */ }
+  return {
+    status: result.status,
+    statusText: result.statusText,
+    duration,
+    size: new Blob([raw]).size,
+    data,
+    raw,
+  }
+}
+
+function ResponsePreview({
+  response,
+  viewMode,
+  collapsedPaths,
+  onViewModeChange,
+  onCollapsedPathsChange,
+}: {
+  response: ResponseResult
+  viewMode: ViewMode
+  collapsedPaths: string[]
+  onViewModeChange: (mode: ViewMode) => void
+  onCollapsedPathsChange: (paths: string[]) => void
+}) {
+  const formatted = typeof response.data === 'string' ? response.data : JSON.stringify(response.data, null, 2)
+  const lineCount = formatted ? formatted.split('\n').length : 0
+  const containerPaths = collectContainerPaths(response.data)
+  const collapsedSet = new Set(collapsedPaths)
+  const allCollapsed = containerPaths.length > 0 && containerPaths.every((path) => collapsedSet.has(path))
+
+  function togglePath(path: string) {
+    const next = new Set(collapsedSet)
+    if (next.has(path)) next.delete(path)
+    else next.add(path)
+    onCollapsedPathsChange([...next])
+  }
+
+  return <>
+    <div className="response-meta workspace-response-meta">
+      <span className={response.status < 400 ? 'status-ok' : 'status-bad'}><i /> {response.status} {response.statusText}</span>
+      <span><Clock3 size={13} /> {response.duration} ms</span>
+      <span>{response.size < 1024 ? `${response.size} B` : `${(response.size / 1024).toFixed(1)} KB`}</span>
+      <span className="meta-spacer" />
+      <span><WrapText size={13} /> {lineCount} lines</span>
+    </div>
+    <div className="viewer-toolbar">
+      <div className="view-tabs" role="tablist" aria-label="Response view mode">
+        <button role="tab" aria-selected={viewMode === 'tree'} className={viewMode === 'tree' ? 'active' : ''} onClick={() => onViewModeChange('tree')}><Network size={13} /> Tree</button>
+        <button role="tab" aria-selected={viewMode === 'code'} className={viewMode === 'code' ? 'active' : ''} onClick={() => onViewModeChange('code')}><Code2 size={13} /> Code</button>
+        <button role="tab" aria-selected={viewMode === 'text'} className={viewMode === 'text' ? 'active' : ''} onClick={() => onViewModeChange('text')}><FileText size={13} /> Text</button>
+      </div>
+      {viewMode === 'tree' && containerPaths.length > 0 && <button className="collapse-all" onClick={() => onCollapsedPathsChange(allCollapsed ? [] : containerPaths)}>
+        {allCollapsed ? <ChevronsUpDown size={13} /> : <ChevronsDownUp size={13} />}{allCollapsed ? 'Expand all' : 'Collapse all'}
+      </button>}
+    </div>
+    {viewMode === 'tree' ? <div className="tree-viewer workspace-tree-viewer"><TreeNode value={response.data} path="$" collapsedPaths={collapsedSet} onToggle={togglePath} /></div>
+      : viewMode === 'code' ? <div className="json-viewer workspace-json-viewer"><div className="line-numbers">{Array.from({ length: lineCount }, (_, i) => <span key={i}>{i + 1}</span>)}</div><pre>{syntaxHighlight(formatted)}</pre></div>
+        : <pre className="text-viewer workspace-text-viewer">{response.raw}</pre>}
+  </>
+}
+
+function WorkspacePage() {
+  const [tabs, setTabs] = useState<WorkspaceTab[]>(() => [createWorkspaceTab(1)])
+  const [activeId, setActiveId] = useState(() => tabs[0].id)
+  const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0]
+
+  function updateTab(id: string, changes: Partial<WorkspaceTab>) {
+    setTabs((current) => current.map((tab) => tab.id === id ? { ...tab, ...changes } : tab))
+  }
+
+  function addTab() {
+    const tab = createWorkspaceTab(tabs.length + 1)
+    setTabs((current) => [...current, tab])
+    setActiveId(tab.id)
+  }
+
+  function closeTab(id: string) {
+    if (tabs.length === 1) {
+      const replacement = createWorkspaceTab(1)
+      setTabs([replacement])
+      setActiveId(replacement.id)
+      return
+    }
+    const index = tabs.findIndex((tab) => tab.id === id)
+    const remaining = tabs.filter((tab) => tab.id !== id)
+    setTabs(remaining)
+    if (activeId === id) setActiveId(remaining[Math.min(index, remaining.length - 1)].id)
+  }
+
+  async function runTab(tab: WorkspaceTab) {
+    updateTab(tab.id, { loading: true, error: '', response: null, collapsedPaths: [] })
+    try {
+      const response = await executeCurl(tab.curl)
+      let hostname = ''
+      try { hostname = new URL(parseCurl(tab.curl).url).hostname.replace(/^www\./, '') } catch { /* Keep tab name. */ }
+      updateTab(tab.id, { response, loading: false, name: hostname || tab.name })
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'The request failed'
+      updateTab(tab.id, {
+        loading: false,
+        error: message.includes('Failed to fetch') ? 'Request blocked or unreachable. The target API may not allow browser requests (CORS).' : message,
+      })
+    }
+  }
+
+  return <Box className="workspace-page-shell">
+    <header className="workspace-topbar">
+      <a className="brand" href="/" aria-label="CurlLens home"><span className="brand-mark"><Braces size={19} strokeWidth={2.4} /></span><span>Curl<span>Lens</span></span></a>
+      <div className="workspace-title"><span>Workspace</span><i />{tabs.length} {tabs.length === 1 ? 'request' : 'requests'}</div>
+      <div className="workspace-nav"><a href="/"><Home size={14} /> Home</a><a href="https://github.com/ailuvu-art/curl-to-formater-json" target="_blank" rel="noreferrer"><Github size={15} /></a></div>
+    </header>
+
+    <div className="request-tabs-bar">
+      <div className="request-tabs" role="tablist">
+        {tabs.map((tab) => <button key={tab.id} role="tab" aria-selected={tab.id === activeId} className={tab.id === activeId ? 'active' : ''} onClick={() => setActiveId(tab.id)}>
+          <span className={`tab-status ${tab.loading ? 'loading' : tab.error ? 'error' : tab.response ? 'success' : ''}`} />
+          <span className="tab-name">{tab.name}</span>
+          <span className="tab-close" role="button" aria-label={`Close ${tab.name}`} onClick={(event) => { event.stopPropagation(); closeTab(tab.id) }}><X size={12} /></span>
+        </button>)}
+        <button className="add-tab" aria-label="Add request tab" onClick={addTab}><Plus size={15} /></button>
+      </div>
+    </div>
+
+    <main className="workspace-canvas">
+      <section className="workspace-pane workspace-request-pane">
+        <div className="workspace-pane-heading">
+          <div><span className="pane-icon">$</span><div><h1>{activeTab.name}</h1><p>cURL request</p></div></div>
+          <div className="pane-actions"><button onClick={() => updateTab(activeTab.id, { curl: EXAMPLE_CURL })}>Example</button><button title="Clear request" onClick={() => updateTab(activeTab.id, { curl: '', response: null, error: '' })}><Trash2 size={14} /></button></div>
+        </div>
+        <div className="workspace-editor">
+          <Textarea aria-label="Curl command" value={activeTab.curl} onChange={(event) => updateTab(activeTab.id, { curl: event.target.value })} spellCheck={false} placeholder="Paste a cURL command here…" />
+        </div>
+        <div className="workspace-request-footer">
+          <span><ShieldCheck size={14} /> Runs locally in your browser</span>
+          <Button className="run-button" onClick={() => runTab(activeTab)} disabled={activeTab.loading || !activeTab.curl.trim()}>
+            {activeTab.loading ? <span className="spinner" /> : <Play size={15} fill="currentColor" />}{activeTab.loading ? 'Running…' : 'Send request'}
+          </Button>
+        </div>
+      </section>
+
+      <section className="workspace-pane workspace-preview-pane">
+        <div className="workspace-pane-heading preview-pane-heading">
+          <div><span className="pane-icon"><Braces size={15} /></span><div><h2>JSON Preview</h2><p>Response inspector</p></div></div>
+          {activeTab.response && <button className="copy-workspace" title="Copy response" onClick={() => navigator.clipboard.writeText(JSON.stringify(activeTab.response?.data, null, 2))}><Copy size={14} /> Copy</button>}
+        </div>
+        {activeTab.error ? <div className="workspace-empty error-state"><span className="state-icon"><X size={22} /></span><h3>Request failed</h3><p>{activeTab.error}</p></div>
+          : activeTab.loading ? <div className="workspace-empty"><span className="large-spinner" /><h3>Fetching response</h3><p>Waiting for the API to respond…</p></div>
+            : activeTab.response ? <ResponsePreview response={activeTab.response} viewMode={activeTab.viewMode} collapsedPaths={activeTab.collapsedPaths} onViewModeChange={(viewMode) => updateTab(activeTab.id, { viewMode })} onCollapsedPathsChange={(collapsedPaths) => updateTab(activeTab.id, { collapsedPaths })} />
+              : <div className="workspace-empty"><span className="state-icon"><Network size={23} /></span><h3>No response yet</h3><p>Paste a cURL command and send the request to inspect its JSON response.</p></div>}
+      </section>
+    </main>
+  </Box>
+}
+
+function LandingPage() {
   const [curl, setCurl] = useState(EXAMPLE_CURL)
   const [response, setResponse] = useState<ResponseState>(null)
   const [error, setError] = useState('')
@@ -258,7 +452,7 @@ function App() {
           <span>Curl<span>Lens</span></span>
         </a>
         <nav>
-          <a href="#workspace">Workspace</a>
+          <a href="/workspace">Workspace</a>
           <a href="#how-it-works">How it works</a>
           <a className="github-link" href="https://github.com/ailuvu-art/curl-to-formater-json" target="_blank" rel="noreferrer"><Github size={16} /> GitHub</a>
         </nav>
@@ -382,6 +576,10 @@ function App() {
       <footer><span>Built for developers who value focus.</span><span>Your request data never touches our servers.</span></footer>
     </Box>
   )
+}
+
+function App() {
+  return window.location.pathname.startsWith('/workspace') ? <WorkspacePage /> : <LandingPage />
 }
 
 export default App
