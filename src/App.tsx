@@ -4,9 +4,15 @@ import {
   Braces,
   Check,
   ChevronDown,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
   Clock3,
+  Code2,
   Copy,
+  FileText,
   Github,
+  Network,
   Play,
   RotateCcw,
   Search,
@@ -78,33 +84,94 @@ function parseCurl(command: string): CurlRequest {
   return { url, method, headers, body }
 }
 
-function JsonValue({ value, depth = 0 }: { value: unknown; depth?: number }) {
+type ViewMode = 'tree' | 'code' | 'text'
+
+type TreeNodeProps = {
+  value: unknown
+  name?: string
+  path: string
+  depth?: number
+  collapsedPaths: Set<string>
+  onToggle: (path: string) => void
+}
+
+function PrimitiveValue({ value }: { value: unknown }) {
   if (value === null) return <span className="json-null">null</span>
   if (typeof value === 'string') return <span className="json-string">&quot;{value}&quot;</span>
   if (typeof value === 'number') return <span className="json-number">{value}</span>
   if (typeof value === 'boolean') return <span className="json-boolean">{String(value)}</span>
+  return <span className="json-null">undefined</span>
+}
 
+function TreeNode({ value, name, path, depth = 0, collapsedPaths, onToggle }: TreeNodeProps) {
+  const isContainer = value !== null && typeof value === 'object'
   const isArray = Array.isArray(value)
-  const entries = Object.entries(value as Record<string, unknown>)
-  if (!entries.length) return <span>{isArray ? '[]' : '{}'}</span>
+  const entries = isContainer ? Object.entries(value as Record<string, unknown>) : []
+  const collapsed = collapsedPaths.has(path)
+  const label = name === undefined ? null : <span className="tree-key">{isArray ? name : `\"${name}\"`}</span>
+
+  if (!isContainer) {
+    return (
+      <div className="tree-row" style={{ paddingLeft: `${depth * 19 + 8}px` }}>
+        <span className="tree-spacer" />{label}{label && <span className="tree-colon">:</span>} <PrimitiveValue value={value} />
+      </div>
+    )
+  }
+
+  const typeLabel = isArray ? 'Array' : 'Object'
+  const opening = isArray ? '[' : '{'
+  const closing = isArray ? ']' : '}'
 
   return (
-    <span>
-      {isArray ? '[' : '{'}
-      {'\n'}
-      {entries.map(([key, child], index) => (
-        <span key={key}>
-          {'  '.repeat(depth + 1)}
-          {!isArray && <><span className="json-key">&quot;{key}&quot;</span>: </>}
-          <JsonValue value={child} depth={depth + 1} />
-          {index < entries.length - 1 ? ',' : ''}
-          {'\n'}
-        </span>
-      ))}
-      {'  '.repeat(depth)}
-      {isArray ? ']' : '}'}
-    </span>
+    <div className="tree-node">
+      <div className="tree-row tree-container-row" style={{ paddingLeft: `${depth * 19 + 8}px` }}>
+        <button className="tree-toggle" onClick={() => onToggle(path)} aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${name ?? 'root'}`}>
+          {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+        </button>
+        {label}{label && <span className="tree-colon">:</span>}
+        <span className="tree-bracket">{opening}</span>
+        <span className="tree-summary">{entries.length} {entries.length === 1 ? 'item' : 'items'} · {typeLabel}</span>
+        {collapsed && <span className="tree-bracket">…{closing}</span>}
+      </div>
+      {!collapsed && <>
+        {entries.map(([key, child]) => (
+          <TreeNode
+            key={`${path}.${key}`}
+            value={child}
+            name={isArray ? key : key}
+            path={`${path}.${key}`}
+            depth={depth + 1}
+            collapsedPaths={collapsedPaths}
+            onToggle={onToggle}
+          />
+        ))}
+        <div className="tree-row tree-closing" style={{ paddingLeft: `${depth * 19 + 27}px` }}>{closing}</div>
+      </>}
+    </div>
   )
+}
+
+function collectContainerPaths(value: unknown, path = '$'): string[] {
+  if (value === null || typeof value !== 'object') return []
+  return [path, ...Object.entries(value as Record<string, unknown>).flatMap(([key, child]) => collectContainerPaths(child, `${path}.${key}`))]
+}
+
+function syntaxHighlight(json: string) {
+  const tokenPattern = /("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"\s*:)|("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*")|\b(true|false)\b|\b(null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g
+  const parts: Array<string | JSX.Element> = []
+  let cursor = 0
+  let match: RegExpExecArray | null
+  let index = 0
+
+  while ((match = tokenPattern.exec(json)) !== null) {
+    if (match.index > cursor) parts.push(json.slice(cursor, match.index))
+    const token = match[0]
+    const className = match[1] ? 'json-key' : match[2] ? 'json-string' : match[3] ? 'json-boolean' : match[4] ? 'json-null' : 'json-number'
+    parts.push(<span className={className} key={`${match.index}-${index++}`}>{token}</span>)
+    cursor = match.index + token.length
+  }
+  if (cursor < json.length) parts.push(json.slice(cursor))
+  return parts
 }
 
 function App() {
@@ -115,16 +182,21 @@ function App() {
   const [copied, setCopied] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [viewMode, setViewMode] = useState<ViewMode>('tree')
+  const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set())
 
   const formatted = useMemo(() => {
     if (!response) return ''
     return typeof response.data === 'string' ? response.data : JSON.stringify(response.data, null, 2)
   }, [response])
+  const containerPaths = useMemo(() => response ? collectContainerPaths(response.data) : [], [response])
+  const allCollapsed = containerPaths.length > 0 && containerPaths.every((path) => collapsedPaths.has(path))
 
   async function runRequest() {
     setError('')
     setLoading(true)
     setResponse(null)
+    setCollapsedPaths(new Set())
     try {
       const request = parseCurl(curl)
       const started = performance.now()
@@ -157,9 +229,22 @@ function App() {
 
   async function copyResponse() {
     if (!formatted) return
-    await navigator.clipboard.writeText(formatted)
+    await navigator.clipboard.writeText(viewMode === 'text' && response ? response.raw : formatted)
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1600)
+  }
+
+  function togglePath(path: string) {
+    setCollapsedPaths((current) => {
+      const next = new Set(current)
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return next
+    })
+  }
+
+  function toggleAllNodes() {
+    setCollapsedPaths(allCollapsed ? new Set() : new Set(containerPaths))
   }
 
   const lineCount = formatted ? formatted.split('\n').length : 0
@@ -175,7 +260,7 @@ function App() {
         <nav>
           <a href="#workspace">Workspace</a>
           <a href="#how-it-works">How it works</a>
-          <a className="github-link" href="https://github.com" target="_blank" rel="noreferrer"><Github size={16} /> GitHub</a>
+          <a className="github-link" href="https://github.com/ailuvu-art/curl-to-formater-json" target="_blank" rel="noreferrer"><Github size={16} /> GitHub</a>
         </nav>
       </header>
 
@@ -251,10 +336,31 @@ function App() {
                   <span className="meta-spacer" />
                   <span><WrapText size={13} /> {lineCount} lines</span>
                 </div>
-                <div className="json-viewer">
-                  <div className="line-numbers">{Array.from({ length: lineCount }, (_, i) => <span key={i}>{i + 1}</span>)}</div>
-                  <pre><JsonValue value={response.data} /></pre>
+                <div className="viewer-toolbar">
+                  <div className="view-tabs" role="tablist" aria-label="Response view mode">
+                    <button role="tab" aria-selected={viewMode === 'tree'} className={viewMode === 'tree' ? 'active' : ''} onClick={() => setViewMode('tree')}><Network size={13} /> Tree</button>
+                    <button role="tab" aria-selected={viewMode === 'code'} className={viewMode === 'code' ? 'active' : ''} onClick={() => setViewMode('code')}><Code2 size={13} /> Code</button>
+                    <button role="tab" aria-selected={viewMode === 'text'} className={viewMode === 'text' ? 'active' : ''} onClick={() => setViewMode('text')}><FileText size={13} /> Text</button>
+                  </div>
+                  {viewMode === 'tree' && containerPaths.length > 0 && (
+                    <button className="collapse-all" onClick={toggleAllNodes}>
+                      {allCollapsed ? <ChevronsUpDown size={13} /> : <ChevronsDownUp size={13} />}
+                      {allCollapsed ? 'Expand all' : 'Collapse all'}
+                    </button>
+                  )}
                 </div>
+                {viewMode === 'tree' ? (
+                  <div className="tree-viewer">
+                    <TreeNode value={response.data} path="$" collapsedPaths={collapsedPaths} onToggle={togglePath} />
+                  </div>
+                ) : viewMode === 'code' ? (
+                  <div className="json-viewer code-viewer">
+                    <div className="line-numbers">{Array.from({ length: lineCount }, (_, i) => <span key={i}>{i + 1}</span>)}</div>
+                    <pre>{syntaxHighlight(formatted)}</pre>
+                  </div>
+                ) : (
+                  <pre className="text-viewer">{response.raw}</pre>
+                )}
               </>
             ) : (
               <div className="state-message empty-state">
