@@ -31,37 +31,6 @@ Create a production build with:
 npm run build
 ```
 
-## Deploy to Vercel with GitHub Actions
-
-The workflow in `.github/workflows/deploy-vercel.yml` deploys the `main` branch to Vercel production. It can also be started manually from the GitHub Actions page.
-
-### 1. Create and link the Vercel project
-
-Create a Vercel project for this repository, then link it from your local checkout:
-
-```bash
-npx vercel login
-npx vercel link
-```
-
-After linking, `.vercel/project.json` contains the project and organization IDs. The `.vercel` directory is intentionally ignored by Git.
-
-### 2. Add GitHub Actions secrets
-
-Open **Repository Settings → Secrets and variables → Actions** and add:
-
-| Secret | Value |
-| --- | --- |
-| `VERCEL_TOKEN` | A token created at [Vercel Account Settings → Tokens](https://vercel.com/account/tokens) |
-| `VERCEL_ORG_ID` | The `orgId` from `.vercel/project.json` |
-| `VERCEL_PROJECT_ID` | The `projectId` from `.vercel/project.json` |
-
-### 3. Deploy
-
-Push to `main`, or open **GitHub → Actions → Deploy to Vercel → Run workflow**. The workflow installs dependencies, pulls the production settings, builds the Vercel output, and deploys it to production.
-
-The included `vercel.json` provides an SPA rewrite so `/workspace` and its nested routes work when opened or refreshed directly.
-
 ## Browser request limitation
 
 CurlLens executes requests directly in the browser. A target API must permit cross-origin browser requests. If it does not provide suitable CORS headers, the same request may work in a terminal but be blocked in CurlLens.
