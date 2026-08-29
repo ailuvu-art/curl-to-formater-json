@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="30%" r="65%">
+      <stop offset="0" stop-color="#28351c"/>
+      <stop offset="1" stop-color="#090c12"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect x="72" y="62" width="1056" height="506" rx="30" fill="#10151d" stroke="#29323e" stroke-width="2"/>
+  <rect x="120" y="112" width="64" height="64" rx="15" fill="#c8ff42"/>
+  <path d="m146 130-13 14 13 14m12-28 13 14-13 14" fill="none" stroke="#10150b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="205" y="158" fill="#f4f6fa" font-family="Arial, sans-serif" font-size="39" font-weight="700">Curl<tspan fill="#c8ff42">Lens</tspan></text>
+  <text x="120" y="278" fill="#f4f6fa" font-family="Arial, sans-serif" font-size="66" font-weight="700">From cURL to clarity,</text>
+  <text x="120" y="355" fill="#c8ff42" font-family="Arial, sans-serif" font-size="66" font-weight="700">instantly.</text>
+  <text x="120" y="425" fill="#8992a2" font-family="Arial, sans-serif" font-size="25">Run requests and inspect JSON in tree, code, or text views.</text>
+  <rect x="120" y="474" width="280" height="54" rx="12" fill="#c8ff42"/>
+  <text x="157" y="509" fill="#10150b" font-family="Arial, sans-serif" font-size="21" font-weight="700">Open the workspace →</text>
+  <text x="850" y="510" fill="#687386" font-family="monospace" font-size="18">JSON · cURL · API</text>
+</svg>

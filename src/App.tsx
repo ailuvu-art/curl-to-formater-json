@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Box, Button, Textarea } from '@chakra-ui/react'
 import {
   Braces,
@@ -280,6 +280,15 @@ function WorkspacePage() {
   const [activeId, setActiveId] = useState(() => tabs[0].id)
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0]
 
+  useEffect(() => {
+    document.title = 'CurlLens Workspace — Multi-request JSON Inspector'
+    document.querySelector('link[rel="canonical"]')?.setAttribute('href', 'https://curl-to-formater-json.vercel.app/workspace')
+    document.querySelector('meta[property="og:url"]')?.setAttribute('content', 'https://curl-to-formater-json.vercel.app/workspace')
+    return () => {
+      document.title = 'CurlLens — cURL to JSON Inspector & Formatter'
+    }
+  }, [])
+
   function updateTab(id: string, changes: Partial<WorkspaceTab>) {
     setTabs((current) => current.map((tab) => tab.id === id ? { ...tab, ...changes } : tab))
   }
@@ -344,7 +353,19 @@ function WorkspacePage() {
           <div className="pane-actions"><button onClick={() => updateTab(activeTab.id, { curl: EXAMPLE_CURL })}>Example</button><button title="Clear request" onClick={() => updateTab(activeTab.id, { curl: '', response: null, error: '' })}><Trash2 size={14} /></button></div>
         </div>
         <div className="workspace-editor">
-          <Textarea aria-label="Curl command" value={activeTab.curl} onChange={(event) => updateTab(activeTab.id, { curl: event.target.value })} spellCheck={false} placeholder="Paste a cURL command here…" />
+          <Textarea
+            aria-label="Curl command"
+            value={activeTab.curl}
+            onChange={(event) => updateTab(activeTab.id, { curl: event.target.value })}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && event.metaKey) {
+                event.preventDefault()
+                if (!event.repeat && !activeTab.loading && activeTab.curl.trim()) void runTab(activeTab)
+              }
+            }}
+            spellCheck={false}
+            placeholder="Paste a cURL command here…"
+          />
         </div>
         <div className="workspace-request-footer">
           <span><ShieldCheck size={14} /> Runs locally in your browser</span>
@@ -477,6 +498,12 @@ function LandingPage() {
                 aria-label="Curl command"
                 value={curl}
                 onChange={(event) => setCurl(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && event.metaKey) {
+                    event.preventDefault()
+                    if (!event.repeat && !loading && curl.trim()) void runRequest()
+                  }
+                }}
                 spellCheck={false}
                 placeholder="curl https://api.example.com/data"
               />
