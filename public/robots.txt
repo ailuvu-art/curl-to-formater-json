@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://curl-to-formater-json.vercel.app/sitemap.xml
+Sitemap: https://www.curljson.help/sitemap.xml
