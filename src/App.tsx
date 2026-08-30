@@ -281,11 +281,11 @@ function WorkspacePage() {
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0]
 
   useEffect(() => {
-    document.title = 'CurlLens Workspace — Multi-request JSON Inspector'
-    document.querySelector('link[rel="canonical"]')?.setAttribute('href', 'https://curl-to-formater-json.vercel.app/workspace')
-    document.querySelector('meta[property="og:url"]')?.setAttribute('content', 'https://curl-to-formater-json.vercel.app/workspace')
+    document.title = 'cURL API Workspace & JSON Response Viewer | CurlLens'
+    document.querySelector('link[rel="canonical"]')?.setAttribute('href', 'https://www.curljson.help/workspace')
+    document.querySelector('meta[property="og:url"]')?.setAttribute('content', 'https://www.curljson.help/workspace')
     return () => {
-      document.title = 'CurlLens — cURL to JSON Inspector & Formatter'
+      document.title = 'cURL to JSON Formatter & Viewer Online | CurlLens'
     }
   }, [])
 
@@ -482,8 +482,8 @@ function LandingPage() {
       <main>
         <section className="hero">
           <div className="eyebrow"><Zap size={13} fill="currentColor" /> Developer tool · Zero setup</div>
-          <h1>From cURL to clarity,<br /><span>instantly.</span></h1>
-          <p>Paste a cURL command. Run it. Explore a beautifully formatted JSON response—without leaving your browser.</p>
+          <h1>cURL to JSON,<br /><span>clear and readable.</span></h1>
+          <p>Paste a cURL command, run the API request, and inspect a beautifully formatted JSON response in your browser—for free.</p>
         </section>
 
         <section className="workspace" id="workspace">
@@ -593,10 +593,11 @@ function LandingPage() {
           </div>
         </section>
 
-        <section className="how-it-works" id="how-it-works">
-          <div><span>1</span><h3>Paste</h3><p>Drop in any cURL command from your docs or terminal.</p></div>
-          <div><span>2</span><h3>Run</h3><p>We parse and execute the request directly in your browser.</p></div>
-          <div><span>3</span><h3>Inspect</h3><p>Read, search, and copy clean syntax-highlighted JSON.</p></div>
+        <section className="how-it-works" id="how-it-works" aria-labelledby="how-it-works-title">
+          <h2 id="how-it-works-title" className="sr-only">How the cURL to JSON formatter works</h2>
+          <div><span>1</span><h3>Paste cURL</h3><p>Drop in any cURL command from your API docs or terminal.</p></div>
+          <div><span>2</span><h3>Run the API request</h3><p>CurlLens parses and executes the request directly in your browser.</p></div>
+          <div><span>3</span><h3>Inspect formatted JSON</h3><p>Explore, search, and copy the API response in tree, code, or raw text views.</p></div>
         </section>
       </main>
 

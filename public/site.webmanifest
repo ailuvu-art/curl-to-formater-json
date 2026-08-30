@@ -1,7 +1,7 @@
 {
   "name": "CurlLens — cURL to JSON Inspector",
   "short_name": "CurlLens",
-  "description": "Run cURL requests and inspect formatted JSON responses in tree, code, or text views.",
+  "description": "Free online cURL to JSON formatter and API response viewer with tree, code, and raw text views.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#090c12",
