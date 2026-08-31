@@ -1,54 +1,139 @@
-# CurlLens
+<div align="center">
+  <img src="public/favicon.svg" width="72" height="72" alt="CurlLens logo" />
 
-A focused cURL-to-JSON inspector built with React, Vite, TypeScript, and Chakra UI. Paste a cURL command, run it in your browser, and inspect the response as an expandable tree, highlighted code, or raw text.
+  # CurlLens
 
-[Open the repository](https://github.com/ailuvu-art/curl-to-formater-json)
+  **Run cURL requests and turn API responses into clear, searchable JSON.**
+
+  [Open CurlLens](https://www.curljson.help/) · [Launch Workspace](https://www.curljson.help/workspace) · [Report an issue](https://github.com/ailuvu-art/curl-to-formater-json/issues)
+
+  [![Live App](https://img.shields.io/badge/live-curljson.help-c8ff42?style=for-the-badge&labelColor=10151d)](https://www.curljson.help/)
+  [![Vercel](https://img.shields.io/badge/deployed_on-Vercel-white?style=for-the-badge&logo=vercel&logoColor=white&labelColor=10151d)](https://www.curljson.help/)
+  [![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&labelColor=10151d)](https://react.dev/)
+</div>
+
+![CurlLens cURL to JSON formatter](docs/images/curljson-home.png)
+
+## What is CurlLens?
+
+[CurlLens](https://www.curljson.help/) is a free, browser-based cURL to JSON formatter and API response viewer. Paste a cURL command, run the equivalent request from your browser, and inspect the result as an expandable JSON tree, syntax-highlighted code, or raw text.
+
+It is useful when you copy a command from API documentation and want a fast visual way to understand the response without setting up a full API client.
 
 ## Features
 
-- Parse and execute cURL commands in the browser
-- Inspect responses in Tree, Code, and Text modes
-- Expand and collapse nested objects and arrays
-- Manage multiple independent requests with workspace tabs
-- View HTTP status, response time, payload size, and line count
-- Copy, search, format, and inspect JSON responses
-- Responsive dark interface built for developer workflows
+- Parse common cURL options: URL, method, headers, and request body
+- Run API requests directly from the browser
+- Explore nested data with an expandable JSON tree
+- Switch between tree, highlighted code, and raw text views
+- Search and copy formatted responses
+- View HTTP status, request duration, response size, and line count
+- Manage multiple requests in the dedicated workspace
+- No account required; the application does not proxy requests through its own server
+
+## Quick start
+
+Try CurlLens online at **[www.curljson.help](https://www.curljson.help/)**.
+
+Paste this example:
+
+```bash
+curl 'https://jsonplaceholder.typicode.com/users/1' \
+  -H 'Accept: application/json'
+```
+
+Then select **Run request**. CurlLens executes the request and presents the response in a navigable JSON viewer.
+
+### POST request example
+
+```bash
+curl 'https://jsonplaceholder.typicode.com/posts' \
+  -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Hello","body":"Created with CurlLens","userId":1}'
+```
+
+> [!IMPORTANT]
+> CurlLens runs requests in the browser. An endpoint can work in terminal cURL but fail in CurlLens when the API does not allow cross-origin browser requests (CORS). Never paste production secrets into a public or shared device.
 
 ## Multi-request workspace
 
-Open `/workspace` while running the application to manage multiple request tabs. Each tab keeps its own cURL command, response, loading state, view mode, and expanded tree nodes.
+The [CurlLens Workspace](https://www.curljson.help/workspace) lets you keep several requests open in tabs and compare API responses without leaving the page.
+
+![CurlLens multi-request JSON workspace](docs/images/curljson-workspace.png)
+
+## Guides
+
+- [Convert a cURL command to formatted JSON](docs/guides/curl-to-json.md)
+- [Understand and troubleshoot cURL CORS errors](docs/guides/curl-cors-errors.md)
+- [Useful cURL examples for testing JSON APIs](docs/guides/curl-api-examples.md)
 
 ## Run locally
 
+### Requirements
+
+- Node.js 20 or newer
+- npm
+
 ```bash
+git clone https://github.com/ailuvu-art/curl-to-formater-json.git
+cd curl-to-formater-json
 npm install
 npm run dev
 ```
 
-Create a production build with:
+Open the local URL printed by Vite.
+
+### Production build
+
+```bash
+npm run build
+npm run preview
+```
+
+## How it works
+
+1. `tokenizeCurl` splits a cURL command while preserving quoted values.
+2. `parseCurl` extracts the URL, HTTP method, headers, and request body.
+3. The browser Fetch API sends the equivalent request directly to the target API.
+4. CurlLens parses JSON when possible and retains the raw response for text view.
+5. The response viewer renders expandable tree nodes or syntax-highlighted JSON.
+
+## Privacy and security
+
+CurlLens does not use an application backend to proxy cURL requests. Your browser connects directly to the target API. That means:
+
+- the target API receives the URL, headers, and body you provide;
+- browser CORS rules apply;
+- secrets remain in the current browser session, but you should still avoid shared devices, screen sharing, and untrusted extensions;
+- you should review a command before running it, especially when it contains authorization headers.
+
+## Contributing
+
+Issues and focused pull requests are welcome. Before submitting a change:
 
 ```bash
 npm run build
 ```
 
-## Browser request limitation
-
-CurlLens executes requests directly in the browser. A target API must permit cross-origin browser requests. If it does not provide suitable CORS headers, the same request may work in a terminal but be blocked in CurlLens.
+Please include reproduction steps for bugs and screenshots for visual changes.
 
 ## Tech stack
 
-- React
+- React 18
 - TypeScript
 - Vite
 - Chakra UI
-- Lucide icons
+- Lucide React
+- Vercel Web Analytics
 
-## Support
+## Support and links
 
-If CurlLens helps your workflow, you can support its development:
+- Website: [https://www.curljson.help/](https://www.curljson.help/)
+- Workspace: [https://www.curljson.help/workspace](https://www.curljson.help/workspace)
+- Source: [github.com/ailuvu-art/curl-to-formater-json](https://github.com/ailuvu-art/curl-to-formater-json)
+- Support the creator: [Buy me a coffee](https://buymeacoffee.com/nolann25)
 
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-nolann25-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/nolann25)
+## License
 
----
-
-Built and signed by [nolann](https://github.com/nolann-dev).
+MIT
