@@ -475,6 +475,8 @@ function LandingPage() {
         <nav>
           <a href="/workspace">Workspace</a>
           <a href="#how-it-works">How it works</a>
+          <a href="#cors-guide">CORS help</a>
+          <a href="#faq">FAQ</a>
           <a className="github-link" href="https://github.com/ailuvu-art/curl-to-formater-json" target="_blank" rel="noreferrer"><Github size={16} /> GitHub</a>
         </nav>
       </header>
@@ -545,6 +547,7 @@ function LandingPage() {
               <div className="state-message error-state">
                 <span className="state-icon"><X size={22} /></span>
                 <h3>Request failed</h3><p>{error}</p>
+                <a className="error-help-link" href="#cors-guide">Why browsers block some cURL requests</a>
               </div>
             ) : response ? (
               <>
@@ -598,6 +601,74 @@ function LandingPage() {
           <div><span>1</span><h3>Paste cURL</h3><p>Drop in any cURL command from your API docs or terminal.</p></div>
           <div><span>2</span><h3>Run the API request</h3><p>CurlLens parses and executes the request directly in your browser.</p></div>
           <div><span>3</span><h3>Inspect formatted JSON</h3><p>Explore, search, and copy the API response in tree, code, or raw text views.</p></div>
+        </section>
+
+        <section className="content-section cors-guide" id="cors-guide" aria-labelledby="cors-guide-title">
+          <div className="section-heading">
+            <span className="section-kicker">Browser security</span>
+            <h2 id="cors-guide-title">Why a cURL request can fail because of CORS</h2>
+            <p>CurlLens sends requests directly from your browser. Browsers enforce Cross-Origin Resource Sharing (CORS), while the cURL command in your terminal does not.</p>
+          </div>
+          <div className="cors-grid">
+            <article>
+              <h3>What “Failed to fetch” means</h3>
+              <p>The target API may be online but may not permit requests from <code>https://www.curljson.help</code>. A redirect, invalid certificate, blocked network request, or browser extension can produce the same message.</p>
+            </article>
+            <article>
+              <h3>Why it works in a terminal</h3>
+              <p>CORS is a browser policy. Command-line cURL is not restricted by it, so a command can succeed in a terminal and still be blocked when a website runs the same request.</p>
+            </article>
+            <article>
+              <h3>How API owners can fix it</h3>
+              <p>Configure the API to return an appropriate <code>Access-Control-Allow-Origin</code> header and allow the requested methods and headers. Requests with credentials require an explicit origin, not <code>*</code>.</p>
+            </article>
+            <article>
+              <h3>What API users can do</h3>
+              <p>Use an endpoint that supports browser access, ask the API owner to enable CORS, or run the command in your terminal. Do not send private API keys through an untrusted public proxy.</p>
+            </article>
+          </div>
+          <aside className="privacy-note">
+            <ShieldCheck size={18} aria-hidden="true" />
+            <div><strong>Your request runs locally</strong><p>CurlLens does not proxy the API request through its own server. Your browser connects directly to the target URL, subject to that API's CORS policy.</p></div>
+          </aside>
+        </section>
+
+        <section className="content-section faq-section" id="faq" aria-labelledby="faq-title">
+          <div className="section-heading">
+            <span className="section-kicker">Common questions</span>
+            <h2 id="faq-title">cURL to JSON formatter FAQ</h2>
+            <p>Quick answers about running cURL commands, formatting API responses, privacy, and browser limitations.</p>
+          </div>
+          <div className="faq-list">
+            <details>
+              <summary>How do I convert a cURL response to formatted JSON?</summary>
+              <p>Paste a cURL command into CurlLens and select <strong>Run request</strong>. If the response contains valid JSON, CurlLens formats it automatically and lets you inspect it as an expandable tree, highlighted code, or raw text.</p>
+            </details>
+            <details>
+              <summary>Can I run a cURL command online with CurlLens?</summary>
+              <p>Yes. CurlLens parses common cURL options, including the URL, HTTP method, headers, and request body, then sends the equivalent request from your browser.</p>
+            </details>
+            <details>
+              <summary>Why does my cURL command work in the terminal but fail here?</summary>
+              <p>The most common reason is CORS. Browsers block cross-origin responses unless the API explicitly allows the website's origin. Terminal cURL does not enforce browser CORS rules. Network errors, TLS problems, and browser extensions can also block a request.</p>
+            </details>
+            <details>
+              <summary>How do I fix a CORS error?</summary>
+              <p>If you own the API, allow <code>https://www.curljson.help</code> with the correct CORS response headers, methods, and request headers. If you do not own it, ask the provider to enable browser access or run the command in a trusted terminal or backend.</p>
+            </details>
+            <details>
+              <summary>Are my requests and JSON responses uploaded to CurlLens?</summary>
+              <p>No application server proxies your request. The request is sent directly from your browser to the target API. Avoid pasting sensitive credentials on shared devices, and remember that the target API still receives anything included in your request.</p>
+            </details>
+            <details>
+              <summary>Does CurlLens support non-JSON responses?</summary>
+              <p>Yes. Valid JSON receives structured tree and code views. Other response formats remain readable in the raw text view, along with the HTTP status, response size, and duration.</p>
+            </details>
+            <details>
+              <summary>Is this cURL to JSON tool free?</summary>
+              <p>Yes. CurlLens is a free, browser-based developer tool with no account required.</p>
+            </details>
+          </div>
         </section>
       </main>
 

@@ -70,6 +70,71 @@
         }
       }
     </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "@id": "https://www.curljson.help/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How do I convert a cURL response to formatted JSON?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Paste a cURL command into CurlLens and select Run request. If the response contains valid JSON, CurlLens formats it automatically in expandable tree, highlighted code, and raw text views."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I run a cURL command online with CurlLens?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. CurlLens parses common cURL options, including the URL, HTTP method, headers, and request body, then sends the equivalent request directly from your browser."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Why does my cURL command work in the terminal but fail in CurlLens?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The most common reason is CORS. Browsers block cross-origin responses unless the API explicitly allows the website origin. Terminal cURL does not enforce browser CORS rules. Network errors, TLS problems, and browser extensions can also block a request."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I fix a CORS error?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "If you own the API, allow https://www.curljson.help with the correct CORS response headers, methods, and request headers. If you do not own it, ask the API provider to enable browser access or run the command in a trusted terminal or backend."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Are my requests and JSON responses uploaded to CurlLens?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No application server proxies your request. The request is sent directly from your browser to the target API. The target API still receives the URL, headers, and body included in your request."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does CurlLens support non-JSON responses?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Valid JSON receives structured tree and code views. Other response formats remain readable in the raw text view, along with the HTTP status, response size, and duration."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is this cURL to JSON tool free?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. CurlLens is a free, browser-based developer tool with no account required."
+            }
+          }
+        ]
+      }
+    </script>
     <title>cURL to JSON Formatter & Viewer Online | CurlLens</title>
   </head>
   <body>
