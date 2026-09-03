@@ -14,6 +14,7 @@ import {
   Github,
   Home,
   Network,
+  PlugZap,
   Play,
   Plus,
   RotateCcw,
@@ -43,6 +44,25 @@ type ResponseResult = {
 
 type ResponseState = ResponseResult | null
 
+type ExecutionMode = 'browser' | 'agent'
+
+type AgentStatus = {
+  name: string
+  version: string
+  protocolVersion: number
+  port: number
+}
+
+type AgentExecutionResponse = {
+  status: number
+  statusText: string
+  duration: number
+  size: number
+  body: string
+  bodyEncoding: 'utf8' | 'base64'
+  error?: string
+}
+
 type WorkspaceTab = {
   id: string
   name: string
@@ -56,6 +76,36 @@ type WorkspaceTab = {
 
 const EXAMPLE_CURL = `curl 'https://jsonplaceholder.typicode.com/users/1' \\
   -H 'Accept: application/json'`
+const DEFAULT_AGENT_URL = 'http://127.0.0.1:43120'
+const AGENT_TOKEN_KEY = 'curllens-agent-token'
+const AGENT_URL_KEY = 'curllens-agent-url'
+
+function getAgentUrl() {
+  return window.localStorage.getItem(AGENT_URL_KEY)?.trim().replace(/\/$/, '') || DEFAULT_AGENT_URL
+}
+
+function validateAgentUrl(value: string) {
+  const url = new URL(value)
+  if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) {
+    throw new Error('Agent URL must use HTTP on localhost or a loopback address.')
+  }
+  return url.origin
+}
+
+function getAgentToken() {
+  return window.localStorage.getItem(AGENT_TOKEN_KEY)?.trim() || ''
+}
+
+async function getAgentStatus(token = getAgentToken(), agentUrl = getAgentUrl()): Promise<AgentStatus> {
+  if (!token) throw new Error('Enter the connection token printed by the agent.')
+  const response = await fetch(`${agentUrl}/v1/status`, {
+    headers: { Authorization: `Bearer ${token}`, 'X-CurlLens-Agent': '1' },
+    signal: AbortSignal.timeout(1500),
+  })
+  const result = await response.json().catch(() => null) as AgentStatus | { error?: string } | null
+  if (!response.ok) throw new Error(result && 'error' in result && result.error ? result.error : `Agent returned HTTP ${response.status}`)
+  return result as AgentStatus
+}
 
 function tokenizeCurl(input: string): string[] {
   const tokens: string[] = []
@@ -90,7 +140,9 @@ function parseCurl(command: string): CurlRequest {
       body = tokens[++i] || ''
       if (method === 'GET') method = 'POST'
     } else if (token === '--url') {
-      url = tokens[++i] || ''
+      const candidate = tokens[++i] || ''
+      if (candidate && !/^https?:\/\//i.test(candidate)) throw new Error('Only HTTP and HTTPS URLs are supported')
+      url = candidate
     } else if (/^https?:\/\//i.test(token)) {
       url = token
     }
@@ -203,8 +255,33 @@ function createWorkspaceTab(index: number): WorkspaceTab {
   }
 }
 
-async function executeCurl(curl: string): Promise<ResponseResult> {
+async function executeCurl(curl: string, mode: ExecutionMode): Promise<ResponseResult> {
   const request = parseCurl(curl)
+  if (mode === 'agent') {
+    const token = getAgentToken()
+    if (!token) throw new Error('Local Agent is not connected. Enter its connection token first.')
+    let response: Response
+    try {
+      response = await fetch(`${getAgentUrl()}/v1/execute`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-CurlLens-Agent': '1',
+        },
+        body: JSON.stringify({ ...request, timeoutMs: 30_000 }),
+      })
+    } catch {
+      throw new Error(`Cannot reach the Local Agent at ${getAgentUrl()}. Start it with npx @curllens/local-agent start.`)
+    }
+    const result = await response.json().catch(() => null) as AgentExecutionResponse | null
+    if (!response.ok || !result) throw new Error(result?.error || `Local Agent returned HTTP ${response.status}`)
+    if (result.bodyEncoding !== 'utf8') throw new Error('The response is binary and cannot be displayed yet.')
+    let data: unknown = result.body
+    try { data = JSON.parse(result.body) } catch { /* Keep non-JSON responses readable. */ }
+    return { status: result.status, statusText: result.statusText, duration: result.duration, size: result.size, data, raw: result.body }
+  }
+
   const started = performance.now()
   const result = await fetch(request.url, {
     method: request.method,
@@ -223,6 +300,45 @@ async function executeCurl(curl: string): Promise<ResponseResult> {
     data,
     raw,
   }
+}
+
+function ExecutionModeControl({ mode, onChange }: { mode: ExecutionMode, onChange: (mode: ExecutionMode) => void }) {
+  return <div className="execution-mode" role="group" aria-label="Request execution mode">
+    <button className={mode === 'browser' ? 'active' : ''} onClick={() => onChange('browser')} title="Send directly from this browser">Browser</button>
+    <button className={mode === 'agent' ? 'active' : ''} onClick={() => onChange('agent')} title="Send through the CurlLens Local Agent"><PlugZap size={12} /> Local Agent</button>
+  </div>
+}
+
+function AgentSetup({ onConnected }: { onConnected: (status: AgentStatus) => void }) {
+  const [token, setToken] = useState(getAgentToken)
+  const [agentUrl, setAgentUrl] = useState(getAgentUrl)
+  const [checking, setChecking] = useState(false)
+  const [message, setMessage] = useState('')
+
+  async function connect() {
+    setChecking(true)
+    setMessage('')
+    try {
+      const normalizedUrl = validateAgentUrl(agentUrl.trim())
+      const status = await getAgentStatus(token.trim(), normalizedUrl)
+      window.localStorage.setItem(AGENT_TOKEN_KEY, token.trim())
+      window.localStorage.setItem(AGENT_URL_KEY, normalizedUrl)
+      onConnected(status)
+      setMessage(`Connected to v${status.version}`)
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : 'Unable to connect to the Local Agent')
+    } finally { setChecking(false) }
+  }
+
+  return <div className="agent-setup">
+    <div><strong>Connect Local Agent</strong><span>Run <code>npx @curllens/local-agent install</code>, then paste the printed token.</span></div>
+    <div className="agent-fields">
+      <input aria-label="Local Agent URL" value={agentUrl} onChange={(event) => setAgentUrl(event.target.value)} placeholder={DEFAULT_AGENT_URL} />
+      <input type="password" aria-label="Local Agent connection token" value={token} onChange={(event) => setToken(event.target.value)} placeholder="Agent connection token" />
+    </div>
+    <button onClick={connect} disabled={checking || !token.trim()}>{checking ? 'Checking…' : 'Connect'}</button>
+    {message && <small>{message}</small>}
+  </div>
 }
 
 function ResponsePreview({
@@ -278,7 +394,14 @@ function ResponsePreview({
 function WorkspacePage() {
   const [tabs, setTabs] = useState<WorkspaceTab[]>(() => [createWorkspaceTab(1)])
   const [activeId, setActiveId] = useState(() => tabs[0].id)
+  const [executionMode, setExecutionMode] = useState<ExecutionMode>(() => getAgentToken() ? 'agent' : 'browser')
+  const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null)
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0]
+
+  useEffect(() => {
+    if (executionMode !== 'agent' || !getAgentToken()) return
+    getAgentStatus().then(setAgentStatus).catch(() => setAgentStatus(null))
+  }, [executionMode])
 
   useEffect(() => {
     document.title = 'cURL API Workspace & JSON Response Viewer | CurlLens'
@@ -315,7 +438,7 @@ function WorkspacePage() {
   async function runTab(tab: WorkspaceTab) {
     updateTab(tab.id, { loading: true, error: '', response: null, collapsedPaths: [] })
     try {
-      const response = await executeCurl(tab.curl)
+      const response = await executeCurl(tab.curl, executionMode)
       let hostname = ''
       try { hostname = new URL(parseCurl(tab.curl).url).hostname.replace(/^www\./, '') } catch { /* Keep tab name. */ }
       updateTab(tab.id, { response, loading: false, name: hostname || tab.name })
@@ -367,8 +490,10 @@ function WorkspacePage() {
             placeholder="Paste a cURL command here…"
           />
         </div>
+        {executionMode === 'agent' && !agentStatus && <AgentSetup onConnected={setAgentStatus} />}
         <div className="workspace-request-footer">
-          <span><ShieldCheck size={14} /> Runs locally in your browser</span>
+          <ExecutionModeControl mode={executionMode} onChange={setExecutionMode} />
+          <span><ShieldCheck size={14} /> {executionMode === 'agent' ? (agentStatus ? `Agent v${agentStatus.version} connected` : 'Agent connection required') : 'Runs locally in your browser'}</span>
           <Button className="run-button" onClick={() => runTab(activeTab)} disabled={activeTab.loading || !activeTab.curl.trim()}>
             {activeTab.loading ? <span className="spinner" /> : <Play size={15} fill="currentColor" />}{activeTab.loading ? 'Running…' : 'Send request'}
           </Button>
@@ -399,6 +524,13 @@ function LandingPage() {
   const [search, setSearch] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('tree')
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set())
+  const [executionMode, setExecutionMode] = useState<ExecutionMode>(() => getAgentToken() ? 'agent' : 'browser')
+  const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null)
+
+  useEffect(() => {
+    if (executionMode !== 'agent' || !getAgentToken()) return
+    getAgentStatus().then(setAgentStatus).catch(() => setAgentStatus(null))
+  }, [executionMode])
 
   const formatted = useMemo(() => {
     if (!response) return ''
@@ -413,25 +545,7 @@ function LandingPage() {
     setResponse(null)
     setCollapsedPaths(new Set())
     try {
-      const request = parseCurl(curl)
-      const started = performance.now()
-      const result = await fetch(request.url, {
-        method: request.method,
-        headers: request.headers,
-        body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body,
-      })
-      const raw = await result.text()
-      const duration = Math.round(performance.now() - started)
-      let data: unknown = raw
-      try { data = JSON.parse(raw) } catch { /* Keep non-JSON responses readable. */ }
-      setResponse({
-        status: result.status,
-        statusText: result.statusText,
-        duration,
-        size: new Blob([raw]).size,
-        data,
-        raw,
-      })
+      setResponse(await executeCurl(curl, executionMode))
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'The request failed'
       setError(message.includes('Failed to fetch')
@@ -510,8 +624,10 @@ function LandingPage() {
                 placeholder="curl https://api.example.com/data"
               />
             </div>
+            {executionMode === 'agent' && !agentStatus && <AgentSetup onConnected={setAgentStatus} />}
             <div className="request-footer">
-              <span><ShieldCheck size={14} /> Requests run locally in your browser</span>
+              <ExecutionModeControl mode={executionMode} onChange={setExecutionMode} />
+              <span><ShieldCheck size={14} /> {executionMode === 'agent' ? (agentStatus ? `Agent v${agentStatus.version} connected` : 'Agent connection required') : 'Requests run locally in your browser'}</span>
               <Button className="run-button" onClick={runRequest} disabled={loading || !curl.trim()}>
                 {loading ? <span className="spinner" /> : <Play size={15} fill="currentColor" />}
                 {loading ? 'Running…' : 'Run request'}
