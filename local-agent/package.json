@@ -1,0 +1,27 @@
+{
+  "name": "@curllens/local-agent",
+  "version": "0.1.0",
+  "description": "Local request runner for CurlLens",
+  "type": "module",
+  "bin": {
+    "curllens-agent": "bin/curllens-agent.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "keywords": [
+    "curl",
+    "cors",
+    "api",
+    "local-agent"
+  ]
+}

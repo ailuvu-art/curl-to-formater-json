@@ -23,13 +23,32 @@ It is useful when you copy a command from API documentation and want a fast visu
 ## Features
 
 - Parse common cURL options: URL, method, headers, and request body
-- Run API requests directly from the browser
+- Run API requests directly from the browser or through the optional local agent
 - Explore nested data with an expandable JSON tree
 - Switch between tree, highlighted code, and raw text views
 - Search and copy formatted responses
 - View HTTP status, request duration, response size, and line count
 - Manage multiple requests in the dedicated workspace
 - No account required; the application does not proxy requests through its own server
+
+## Local Agent
+
+When a request is blocked by browser CORS, run it through the optional CurlLens Local Agent. It executes on your computer and can also reach localhost, LAN, and VPN endpoints.
+
+```bash
+# Install/configure and start the background service
+npx @curllens/local-agent install
+
+# Later lifecycle commands
+npx @curllens/local-agent start
+npx @curllens/local-agent status
+npx @curllens/local-agent stop
+npx @curllens/local-agent uninstall
+```
+
+Copy the connection token printed by `install`, choose **Local Agent** in CurlLens, and paste the token. Node.js 20 or newer is required. See [`local-agent/README.md`](local-agent/README.md) for configuration and security details.
+
+> The npm package must be published as `@curllens/local-agent` before the public `npx` command can download it. Repository contributors can test it with `npm exec --package ./local-agent curllens-agent -- install`.
 
 ## Quick start
 
@@ -95,7 +114,7 @@ npm run preview
 
 1. `tokenizeCurl` splits a cURL command while preserving quoted values.
 2. `parseCurl` extracts the URL, HTTP method, headers, and request body.
-3. The browser Fetch API sends the equivalent request directly to the target API.
+3. Browser mode sends the equivalent request directly to the target API; Local Agent mode sends it to the authenticated loopback service for execution.
 4. CurlLens parses JSON when possible and retains the raw response for text view.
 5. The response viewer renders expandable tree nodes or syntax-highlighted JSON.
 
