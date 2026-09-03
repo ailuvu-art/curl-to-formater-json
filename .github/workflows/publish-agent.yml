@@ -1,0 +1,86 @@
+name: Publish local agent to npm
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'local-agent/**'
+
+  # Allow triggering manually from the GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run tests
+        working-directory: local-agent
+        run: npm test
+
+  publish:
+    name: Publish to npm
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # Required for npm provenance attestation
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js with npm registry
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Skip publishing if this exact version is already on npm
+      - name: Check whether version is already published
+        id: version_check
+        working-directory: local-agent
+        run: |
+          PACKAGE=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          echo "package=$PACKAGE" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if npm view "${PACKAGE}@${VERSION}" version 2>/dev/null | grep -qF "$VERSION"; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "Version $VERSION is already on npm — skipping publish."
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+            echo "Version $VERSION is not on npm — will publish."
+          fi
+
+      - name: Publish
+        if: steps.version_check.outputs.already_published == 'false'
+        working-directory: local-agent
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Summary
+        run: |
+          PACKAGE="${{ steps.version_check.outputs.package }}"
+          VERSION="${{ steps.version_check.outputs.version }}"
+          if [ "${{ steps.version_check.outputs.already_published }}" = "true" ]; then
+            echo "### ⏭️ Skipped — already published" >> "$GITHUB_STEP_SUMMARY"
+            echo "\`${PACKAGE}@${VERSION}\` was already on npm." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ✅ Published" >> "$GITHUB_STEP_SUMMARY"
+            echo "\`${PACKAGE}@${VERSION}\` is now live." >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "\`\`\`bash" >> "$GITHUB_STEP_SUMMARY"
+            echo "npx ${PACKAGE} install" >> "$GITHUB_STEP_SUMMARY"
+            echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          fi
