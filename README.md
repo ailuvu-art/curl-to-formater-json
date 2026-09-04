@@ -37,13 +37,13 @@ When a request is blocked by browser CORS, run it through the optional CurlLens 
 
 ```bash
 # Install/configure and start the background service
-npx @nolann-dev/local-agent install
+npx @nolann-dev/curllens-agent install
 
 # Later lifecycle commands
-npx @nolann-dev/local-agent start
-npx @nolann-dev/local-agent status
-npx @nolann-dev/local-agent stop
-npx @nolann-dev/local-agent uninstall
+npx @nolann-dev/curllens-agent start
+npx @nolann-dev/curllens-agent status
+npx @nolann-dev/curllens-agent stop
+npx @nolann-dev/curllens-agent uninstall
 ```
 
 Copy the connection token printed by `install`, choose **Local Agent** in CurlLens, and paste the token. Node.js 20 or newer is required. See [`local-agent/README.md`](local-agent/README.md) for configuration and security details.

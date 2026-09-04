@@ -32,7 +32,7 @@ function printHelp() {
   console.log(`CurlLens Local Agent v${VERSION}
 
 Usage:
-  npx @nolann-dev/local-agent <command> [options]
+  npx @nolann-dev/curllens-agent <command> [options]
 
 Commands:
   install      Create local configuration and start the agent
@@ -50,11 +50,11 @@ Options:
   --version              Print the version
 
 Examples:
-  npx @nolann-dev/local-agent install
-  npx @nolann-dev/local-agent start
-  npx @nolann-dev/local-agent status
-  npx @nolann-dev/local-agent stop
-  npx @nolann-dev/local-agent uninstall
+  npx @nolann-dev/curllens-agent install
+  npx @nolann-dev/curllens-agent start
+  npx @nolann-dev/curllens-agent status
+  npx @nolann-dev/curllens-agent stop
+  npx @nolann-dev/curllens-agent uninstall
 `)
 }
 
