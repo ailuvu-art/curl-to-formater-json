@@ -272,7 +272,7 @@ async function executeCurl(curl: string, mode: ExecutionMode): Promise<ResponseR
         body: JSON.stringify({ ...request, timeoutMs: 30_000 }),
       })
     } catch {
-      throw new Error(`Cannot reach the Local Agent at ${getAgentUrl()}. Start it with npx @curllens/local-agent start.`)
+      throw new Error(`Cannot reach the Local Agent at ${getAgentUrl()}. Start it with npx @nolann-dev/curllens-agent start.`)
     }
     const result = await response.json().catch(() => null) as AgentExecutionResponse | null
     if (!response.ok || !result) throw new Error(result?.error || `Local Agent returned HTTP ${response.status}`)
@@ -331,7 +331,7 @@ function AgentSetup({ onConnected }: { onConnected: (status: AgentStatus) => voi
   }
 
   return <div className="agent-setup">
-    <div><strong>Connect Local Agent</strong><span>Run <code>npx @curllens/local-agent install</code>, then paste the printed token.</span></div>
+    <div><strong>Connect Local Agent</strong><span>Run <code>npx @nolann-dev/curllens-agent install</code>, then paste the printed token.</span></div>
     <div className="agent-fields">
       <input aria-label="Local Agent URL" value={agentUrl} onChange={(event) => setAgentUrl(event.target.value)} placeholder={DEFAULT_AGENT_URL} />
       <input type="password" aria-label="Local Agent connection token" value={token} onChange={(event) => setToken(event.target.value)} placeholder="Agent connection token" />

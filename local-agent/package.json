@@ -1,5 +1,5 @@
 {
-  "name": "@curllens/local-agent",
+  "name": "@nolann-dev/curllens-agent",
   "version": "0.1.0",
   "description": "Local request runner for CurlLens",
   "type": "module",
