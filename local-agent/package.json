@@ -2,6 +2,15 @@
   "name": "@nolann-dev/curllens-agent",
   "version": "0.1.0",
   "description": "Local request runner for CurlLens",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ailuvu-art/curl-to-formater-json.git",
+    "directory": "local-agent"
+  },
+  "homepage": "https://www.curljson.help/",
+  "bugs": {
+    "url": "https://github.com/ailuvu-art/curl-to-formater-json/issues"
+  },
   "type": "module",
   "bin": {
     "curllens-agent": "bin/curllens-agent.js"
