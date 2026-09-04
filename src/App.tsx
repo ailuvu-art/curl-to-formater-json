@@ -723,29 +723,41 @@ function LandingPage() {
           <div className="section-heading">
             <span className="section-kicker">Browser security</span>
             <h2 id="cors-guide-title">Why a cURL request can fail because of CORS</h2>
-            <p>CurlLens sends requests directly from your browser. Browsers enforce Cross-Origin Resource Sharing (CORS), while the cURL command in your terminal does not.</p>
+            <p>Browser mode must follow Cross-Origin Resource Sharing (CORS) rules. When an API does not allow browser access, CurlLens Agent can run the request locally outside the browser sandbox.</p>
           </div>
           <div className="cors-grid">
             <article>
               <h3>What “Failed to fetch” means</h3>
-              <p>The target API may be online but may not permit requests from <code>https://www.curljson.help</code>. A redirect, invalid certificate, blocked network request, or browser extension can produce the same message.</p>
+              <p>The target API may be online but may not permit requests from <code>https://www.curljson.help</code>. A failed preflight, redirect, invalid certificate, network policy, or browser extension can produce the same message.</p>
             </article>
             <article>
-              <h3>Why it works in a terminal</h3>
-              <p>CORS is a browser policy. Command-line cURL is not restricted by it, so a command can succeed in a terminal and still be blocked when a website runs the same request.</p>
+              <h3>Why terminal cURL works</h3>
+              <p>CORS is enforced by browsers—not by HTTP servers, terminal cURL, or CurlLens Agent. A request can therefore succeed in a terminal while Browser mode cannot read its response.</p>
             </article>
             <article>
-              <h3>How API owners can fix it</h3>
-              <p>Configure the API to return an appropriate <code>Access-Control-Allow-Origin</code> header and allow the requested methods and headers. Requests with credentials require an explicit origin, not <code>*</code>.</p>
+              <h3>If you own the API</h3>
+              <p>Allow the CurlLens origin and handle <code>OPTIONS</code> preflight requests with the required methods and headers. Credentialed requests need an explicit origin instead of <code>*</code>.</p>
             </article>
             <article>
-              <h3>What API users can do</h3>
-              <p>Use an endpoint that supports browser access, ask the API owner to enable CORS, or run the command in your terminal. Do not send private API keys through an untrusted public proxy.</p>
+              <h3>If you use the API</h3>
+              <p>Switch to Local Agent mode for CORS-blocked, localhost, LAN, or VPN APIs. The request runs on your computer instead of passing through an untrusted public CORS proxy.</p>
             </article>
+          </div>
+          <div className="agent-solution">
+            <div className="agent-solution-heading">
+              <span><PlugZap size={18} aria-hidden="true" /></span>
+              <div><strong>Run it with CurlLens Agent</strong><p>Install once, connect with the generated token, and send the same request without target API CORS restrictions.</p></div>
+            </div>
+            <ol>
+              <li><span>1</span><div><strong>Install and start</strong><code>npx @nolann-dev/curllens-agent install</code></div></li>
+              <li><span>2</span><div><strong>Copy the connection token</strong><p>The terminal prints a private token after the agent starts on <code>127.0.0.1:43120</code>.</p></div></li>
+              <li><span>3</span><div><strong>Connect in CurlLens</strong><p>Select <b>Local Agent</b>, paste the token, select <b>Connect</b>, then run your request again.</p></div></li>
+            </ol>
+            <div className="agent-command-help"><span>Already installed?</span><code>npx @nolann-dev/curllens-agent start</code><code>npx @nolann-dev/curllens-agent status</code></div>
           </div>
           <aside className="privacy-note">
             <ShieldCheck size={18} aria-hidden="true" />
-            <div><strong>Your request runs locally</strong><p>CurlLens does not proxy the API request through its own server. Your browser connects directly to the target URL, subject to that API's CORS policy.</p></div>
+            <div><strong>Local and authenticated</strong><p>The agent listens only on your computer and requires its private connection token. CurlLens does not send the target request through a CurlLens cloud proxy.</p></div>
           </aside>
         </section>
 
@@ -770,7 +782,7 @@ function LandingPage() {
             </details>
             <details>
               <summary>How do I fix a CORS error?</summary>
-              <p>If you own the API, allow <code>https://www.curljson.help</code> with the correct CORS response headers, methods, and request headers. If you do not own it, ask the provider to enable browser access or run the command in a trusted terminal or backend.</p>
+              <p>If you own the API, allow <code>https://www.curljson.help</code> with the correct CORS response headers, methods, and request headers. Otherwise, install CurlLens Agent with <code>npx @nolann-dev/curllens-agent install</code>, select <strong>Local Agent</strong>, and connect using the token printed in your terminal.</p>
             </details>
             <details>
               <summary>Are my requests and JSON responses uploaded to CurlLens?</summary>
