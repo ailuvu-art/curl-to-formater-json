@@ -597,7 +597,7 @@ function LandingPage() {
 
       <main>
         <section className="hero">
-          <div className="eyebrow"><Zap size={13} fill="currentColor" /> Developer tool · Zero setup</div>
+          <div className="eyebrow"><Zap size={13} fill="currentColor" /> Developer tool · Browser or local agent</div>
           <h1>cURL to JSON,<br /><span>clear and readable.</span></h1>
           <p>Paste a cURL command, run the API request, and inspect a beautifully formatted JSON response in your browser—for free.</p>
         </section>
