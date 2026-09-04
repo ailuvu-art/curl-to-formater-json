@@ -37,18 +37,18 @@ When a request is blocked by browser CORS, run it through the optional CurlLens 
 
 ```bash
 # Install/configure and start the background service
-npx @curllens/local-agent install
+npx @nolann-dev/local-agent install
 
 # Later lifecycle commands
-npx @curllens/local-agent start
-npx @curllens/local-agent status
-npx @curllens/local-agent stop
-npx @curllens/local-agent uninstall
+npx @nolann-dev/local-agent start
+npx @nolann-dev/local-agent status
+npx @nolann-dev/local-agent stop
+npx @nolann-dev/local-agent uninstall
 ```
 
 Copy the connection token printed by `install`, choose **Local Agent** in CurlLens, and paste the token. Node.js 20 or newer is required. See [`local-agent/README.md`](local-agent/README.md) for configuration and security details.
 
-> The npm package must be published as `@curllens/local-agent` before the public `npx` command can download it. Repository contributors can test it with `npm exec --package ./local-agent curllens-agent -- install`.
+> Repository contributors can test an unpublished checkout with `npm exec --package ./local-agent -- curllens-agent install`.
 
 ## Quick start
 

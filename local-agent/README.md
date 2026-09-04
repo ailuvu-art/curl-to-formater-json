@@ -11,16 +11,16 @@ The CurlLens Local Agent runs API requests on your computer so CurlLens can reac
 
 ```bash
 # First-time setup: create config and start in background
-npx @curllens/local-agent install
+npx @nolann-dev/local-agent install
 
 # Lifecycle
-npx @curllens/local-agent start
-npx @curllens/local-agent status
-npx @curllens/local-agent stop
-npx @curllens/local-agent uninstall
+npx @nolann-dev/local-agent start
+npx @nolann-dev/local-agent status
+npx @nolann-dev/local-agent stop
+npx @nolann-dev/local-agent uninstall
 
 # Print the connection token again
-npx @curllens/local-agent token
+npx @nolann-dev/local-agent token
 ```
 
 `npx` downloads the package when needed. You do not need a global npm installation.
@@ -32,13 +32,13 @@ After `install`, copy the printed connection token into CurlLens, choose **Local
 The agent allows the production CurlLens origins and Vite development origins by default. Add another exact browser origin during install or start:
 
 ```bash
-npx @curllens/local-agent install --allow-origin https://preview.example.com
+npx @nolann-dev/local-agent install --allow-origin https://preview.example.com
 ```
 
 Use a custom port if the default `43120` is occupied:
 
 ```bash
-npx @curllens/local-agent install --port 43121
+npx @nolann-dev/local-agent install --port 43121
 ```
 
 Enter the matching loopback URL, such as `http://127.0.0.1:43121`, in the CurlLens connection form.
@@ -60,7 +60,7 @@ Treat the token like a password. Do not paste it into another website or commit 
 Run in the foreground for troubleshooting:
 
 ```bash
-npx @curllens/local-agent serve
+npx @nolann-dev/local-agent serve
 ```
 
 Background logs are written to:
