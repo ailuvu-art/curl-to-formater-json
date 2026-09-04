@@ -144,6 +144,20 @@ kbd { font: 500 8px 'JetBrains Mono'; color: #5b681e; padding-left: 6px; border-
 .cors-grid h3 { margin: 0 0 10px; color: #dfe4ec; font-size: 13px; }
 .cors-grid p, .privacy-note p { margin: 0; color: #778294; font-size: 12px; line-height: 1.7; }
 .cors-grid code, .faq-list code { padding: 2px 5px; border: 1px solid #2b3522; border-radius: 4px; color: #c8e883; background: #131a10; font: 10px 'JetBrains Mono'; overflow-wrap: anywhere; }
+.agent-solution { margin-top: 14px; padding: 25px; border: 1px solid rgba(200,255,66,.22); border-radius: 13px; background: linear-gradient(135deg, rgba(200,255,66,.07), rgba(15,20,28,.96) 48%); }
+.agent-solution-heading { display: flex; align-items: flex-start; gap: 13px; }
+.agent-solution-heading > span { width: 35px; height: 35px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; color: #11170b; background: var(--accent); box-shadow: 0 0 22px rgba(200,255,66,.12); }
+.agent-solution-heading strong { display: block; margin: 1px 0 5px; color: #e5f2c8; font-size: 14px; }
+.agent-solution-heading p { margin: 0; color: #7f8a78; font-size: 12px; line-height: 1.65; }
+.agent-solution ol { margin: 22px 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; list-style: none; }
+.agent-solution li { min-width: 0; padding: 15px; display: flex; align-items: flex-start; gap: 10px; border: 1px solid #293224; border-radius: 9px; background: rgba(9,13,17,.64); }
+.agent-solution li > span { width: 21px; height: 21px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid #526432; border-radius: 6px; color: var(--accent); font: 9px 'JetBrains Mono'; }
+.agent-solution li div { min-width: 0; display: grid; gap: 7px; }
+.agent-solution li strong { color: #cbd4bd; font-size: 10px; }
+.agent-solution li p { margin: 0; color: #6e796c; font-size: 10px; line-height: 1.55; }
+.agent-solution code { padding: 5px 7px; border: 1px solid #303b25; border-radius: 5px; color: #c8e883; background: #0e140c; font: 9px/1.5 'JetBrains Mono'; overflow-wrap: anywhere; }
+.agent-command-help { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.agent-command-help span { margin-right: 3px; color: #697464; font-size: 10px; }
 .privacy-note { margin-top: 14px; padding: 20px 22px; display: flex; gap: 14px; align-items: flex-start; border: 1px solid rgba(200,255,66,.18); border-radius: 12px; color: var(--accent); background: rgba(200,255,66,.045); }
 .privacy-note svg { flex: 0 0 auto; margin-top: 2px; }
 .privacy-note strong { display: block; margin-bottom: 5px; color: #dce9bd; font-size: 12px; }
@@ -239,6 +253,9 @@ footer { min-height: 65px; border-top: 1px solid #1a202a; padding: 0 max(5.5vw, 
   .section-heading { margin-bottom: 28px; }
   .cors-grid { grid-template-columns: 1fr; }
   .cors-grid article { padding: 20px; }
+  .agent-solution { padding: 19px; }
+  .agent-solution ol { grid-template-columns: 1fr; }
+  .agent-command-help { align-items: stretch; flex-direction: column; }
   .privacy-note { padding: 18px; }
   .faq-list summary { padding-left: 16px; font-size: 12px; }
   .faq-list details p { padding: 0 38px 18px 16px; }

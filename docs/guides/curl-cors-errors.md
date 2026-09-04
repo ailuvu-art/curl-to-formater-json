@@ -2,7 +2,7 @@
 
 You run a cURL command in the terminal and receive JSON. You paste the same command into a browser-based API tool and see `Failed to fetch`. The API can be healthy in both cases—the difference is often Cross-Origin Resource Sharing (CORS).
 
-[CurlLens](https://www.curljson.help/) sends requests directly from the browser, so browser security rules apply.
+[CurlLens](https://www.curljson.help/) can send requests directly from the browser, so browser security rules apply in **Browser** mode. Its optional **Local Agent** mode executes requests on your computer outside the browser CORS sandbox.
 
 ## What CORS does
 
@@ -83,12 +83,49 @@ The exact configuration depends on your server framework, gateway, and authentic
 
 If you do not control the API:
 
+- use CurlLens **Local Agent** mode;
 - use an official endpoint that supports browser access;
 - ask the provider whether browser CORS is supported;
 - run the original command in a trusted terminal;
 - use your own authenticated backend when your application needs server-to-server access.
 
 Do not paste private credentials into a random public CORS proxy. A proxy can read and retain every header and body you send.
+
+## Run the request with CurlLens Agent
+
+CurlLens Agent is a small authenticated service that runs on your computer. It is useful for APIs blocked by CORS and for endpoints available only through `localhost`, your LAN, or a VPN.
+
+### 1. Install and start the agent
+
+Node.js 20 or newer is required:
+
+```bash
+npx @nolann-dev/curllens-agent install
+```
+
+The command starts the agent on `http://127.0.0.1:43120` and prints a private connection token.
+
+### 2. Connect CurlLens
+
+1. Open [CurlLens](https://www.curljson.help/).
+2. Select **Local Agent** under the request editor.
+3. Paste the token printed by the installation command.
+4. Select **Connect**.
+5. Run the cURL request again.
+
+The browser sends the request definition to the authenticated loopback agent. The agent contacts the target API from your computer and returns the response to CurlLens, so the target API's browser CORS policy does not block the response.
+
+### Agent lifecycle commands
+
+```bash
+npx @nolann-dev/curllens-agent start
+npx @nolann-dev/curllens-agent status
+npx @nolann-dev/curllens-agent token
+npx @nolann-dev/curllens-agent stop
+npx @nolann-dev/curllens-agent uninstall
+```
+
+Treat the connection token like a password. The agent listens only on your loopback interface and accepts explicitly allowed CurlLens browser origins, but anyone who obtains the token may try to send requests through your local agent.
 
 ## Debugging checklist
 
