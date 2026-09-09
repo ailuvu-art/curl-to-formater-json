@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Button, Textarea } from '@chakra-ui/react'
 import {
   Braces,
@@ -66,6 +66,7 @@ type AgentExecutionResponse = {
 type WorkspaceTab = {
   id: string
   name: string
+  manuallyNamed: boolean
   curl: string
   response: ResponseState
   error: string
@@ -246,6 +247,7 @@ function createWorkspaceTab(index: number): WorkspaceTab {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     name: `Request ${index}`,
+    manuallyNamed: false,
     curl: index === 1 ? EXAMPLE_CURL : '',
     response: null,
     error: '',
@@ -396,6 +398,9 @@ function WorkspacePage() {
   const [activeId, setActiveId] = useState(() => tabs[0].id)
   const [executionMode, setExecutionMode] = useState<ExecutionMode>(() => getAgentToken() ? 'agent' : 'browser')
   const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null)
+  const [editingTabId, setEditingTabId] = useState<string | null>(null)
+  const [draftTabName, setDraftTabName] = useState('')
+  const renameInputRef = useRef<HTMLInputElement>(null)
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0]
 
   useEffect(() => {
@@ -412,8 +417,32 @@ function WorkspacePage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!editingTabId) return
+    renameInputRef.current?.focus()
+    renameInputRef.current?.select()
+  }, [editingTabId])
+
   function updateTab(id: string, changes: Partial<WorkspaceTab>) {
     setTabs((current) => current.map((tab) => tab.id === id ? { ...tab, ...changes } : tab))
+  }
+
+  function startRenamingTab(tab: WorkspaceTab) {
+    setActiveId(tab.id)
+    setDraftTabName(tab.name)
+    setEditingTabId(tab.id)
+  }
+
+  function commitTabName(id: string) {
+    const name = draftTabName.trim()
+    if (name) updateTab(id, { name, manuallyNamed: true })
+    setEditingTabId(null)
+    setDraftTabName('')
+  }
+
+  function cancelTabRename() {
+    setEditingTabId(null)
+    setDraftTabName('')
   }
 
   function addTab() {
@@ -423,6 +452,7 @@ function WorkspacePage() {
   }
 
   function closeTab(id: string) {
+    if (editingTabId === id) cancelTabRename()
     if (tabs.length === 1) {
       const replacement = createWorkspaceTab(1)
       setTabs([replacement])
@@ -441,7 +471,9 @@ function WorkspacePage() {
       const response = await executeCurl(tab.curl, executionMode)
       let hostname = ''
       try { hostname = new URL(parseCurl(tab.curl).url).hostname.replace(/^www\./, '') } catch { /* Keep tab name. */ }
-      updateTab(tab.id, { response, loading: false, name: hostname || tab.name })
+      setTabs((current) => current.map((currentTab) => currentTab.id === tab.id
+        ? { ...currentTab, response, loading: false, ...(!currentTab.manuallyNamed && hostname ? { name: hostname } : {}) }
+        : currentTab))
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'The request failed'
       updateTab(tab.id, {
@@ -460,11 +492,32 @@ function WorkspacePage() {
 
     <div className="request-tabs-bar">
       <div className="request-tabs" role="tablist">
-        {tabs.map((tab) => <button key={tab.id} role="tab" aria-selected={tab.id === activeId} className={tab.id === activeId ? 'active' : ''} onClick={() => setActiveId(tab.id)}>
+        {tabs.map((tab) => <div key={tab.id} className={`request-tab ${tab.id === activeId ? 'active' : ''}`}>
           <span className={`tab-status ${tab.loading ? 'loading' : tab.error ? 'error' : tab.response ? 'success' : ''}`} />
-          <span className="tab-name">{tab.name}</span>
-          <span className="tab-close" role="button" aria-label={`Close ${tab.name}`} onClick={(event) => { event.stopPropagation(); closeTab(tab.id) }}><X size={12} /></span>
-        </button>)}
+          {editingTabId === tab.id
+            ? <input
+                ref={renameInputRef}
+                className="tab-name-input"
+                aria-label={`Rename ${tab.name} tab`}
+                value={draftTabName}
+                maxLength={80}
+                onChange={(event) => setDraftTabName(event.target.value)}
+                onBlur={() => commitTabName(tab.id)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    commitTabName(tab.id)
+                  } else if (event.key === 'Escape') {
+                    event.preventDefault()
+                    cancelTabRename()
+                  }
+                }}
+              />
+            : <button className="tab-select" role="tab" aria-selected={tab.id === activeId} onClick={() => setActiveId(tab.id)} onDoubleClick={() => startRenamingTab(tab)}>
+                <span className="tab-name">{tab.name}</span>
+              </button>}
+          <button className="tab-close" aria-label={`Close ${tab.name}`} onClick={() => closeTab(tab.id)}><X size={12} /></button>
+        </div>)}
         <button className="add-tab" aria-label="Add request tab" onClick={addTab}><Plus size={15} /></button>
       </div>
     </div>
