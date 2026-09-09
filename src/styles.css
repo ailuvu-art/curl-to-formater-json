@@ -189,17 +189,19 @@ footer { min-height: 65px; border-top: 1px solid #1a202a; padding: 0 max(5.5vw, 
 .request-tabs-bar { min-width: 0; padding: 0 15px; overflow: hidden; border-bottom: 1px solid #232b37; background: #0e131b; }
 .request-tabs { height: 100%; display: flex; align-items: end; overflow-x: auto; scrollbar-width: none; }
 .request-tabs::-webkit-scrollbar { display: none; }
-.request-tabs > button { flex: 0 0 auto; height: 39px; min-width: 155px; max-width: 220px; padding: 0 9px 0 13px; border: 1px solid transparent; border-bottom: 0; border-radius: 8px 8px 0 0; display: flex; align-items: center; gap: 8px; color: #657082; background: transparent; cursor: pointer; }
-.request-tabs > button:hover { color: #aab3c0; background: rgba(255,255,255,.018); }
-.request-tabs > button.active { color: #e1e6ed; border-color: #28313e; background: #151b25; }
+.request-tab { flex: 0 0 auto; height: 39px; min-width: 155px; max-width: 220px; padding: 0 6px 0 13px; border: 1px solid transparent; border-bottom: 0; border-radius: 8px 8px 0 0; display: flex; align-items: center; gap: 8px; color: #657082; background: transparent; }
+.request-tab:hover { color: #aab3c0; background: rgba(255,255,255,.018); }
+.request-tab.active { color: #e1e6ed; border-color: #28313e; background: #151b25; }
+.tab-select { min-width: 0; height: 100%; padding: 0; border: 0; display: flex; flex: 1; align-items: center; color: inherit; background: transparent; cursor: pointer; }
 .tab-status { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; border: 1px solid #4c5665; }
 .tab-status.success { border: 0; background: #8fcb4a; box-shadow: 0 0 7px rgba(143,203,74,.4); }
 .tab-status.error { border: 0; background: #ff7784; }
 .tab-status.loading { border: 1px solid #536030; border-top-color: var(--accent); animation: spin .7s linear infinite; }
 .tab-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-size: 11px; }
-.tab-close { width: 21px; height: 21px; flex: 0 0 auto; border-radius: 5px; display: grid; place-items: center; color: #555f70; }
+.tab-name-input { min-width: 0; width: 100%; height: 24px; flex: 1; padding: 2px 5px; border: 1px solid var(--accent); border-radius: 4px; outline: 0; color: #e1e6ed; background: #0b1017; font: 11px 'DM Sans', sans-serif; box-shadow: 0 0 0 2px rgba(200,255,66,.1); }
+.tab-close { width: 21px; height: 21px; padding: 0; flex: 0 0 auto; border: 0; border-radius: 5px; display: grid; place-items: center; color: #555f70; background: transparent; cursor: pointer; }
 .tab-close:hover { color: #ff8b96; background: rgba(255,119,132,.08); }
-.request-tabs > button.add-tab { min-width: 37px; width: 37px; padding: 0; justify-content: center; border: 0; }
+.request-tabs > button.add-tab { flex: 0 0 auto; height: 39px; min-width: 37px; width: 37px; padding: 0; border: 0; display: grid; place-items: center; color: #657082; background: transparent; cursor: pointer; }
 .workspace-canvas { width: 100%; min-width: 0; min-height: 0; padding: 16px; display: grid; grid-template-columns: minmax(320px, .78fr) minmax(430px, 1.22fr); gap: 14px; }
 .workspace-pane { min-width: 0; min-height: 0; border: 1px solid #242c38; border-radius: 11px; overflow: hidden; display: flex; flex-direction: column; background: #0f141c; box-shadow: 0 20px 65px rgba(0,0,0,.16); }
 .workspace-pane-heading { height: 61px; flex: 0 0 auto; padding: 0 15px; border-bottom: 1px solid #232b37; display: flex; align-items: center; justify-content: space-between; }
@@ -263,7 +265,7 @@ footer { min-height: 65px; border-top: 1px solid #1a202a; padding: 0 max(5.5vw, 
   .workspace-topbar { padding: 0 13px; }
   .workspace-nav a:first-child { display: none; }
   .request-tabs-bar { padding-left: 7px; }
-  .request-tabs > button { min-width: 135px; }
+  .request-tab { min-width: 135px; }
   .workspace-canvas { padding: 8px; gap: 8px; grid-template-rows: minmax(330px, 45vh) minmax(450px, 65vh); }
   .workspace-request-footer > span { display: none; }
   .workspace-request-footer { justify-content: space-between; }
