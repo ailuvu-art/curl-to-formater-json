@@ -13,6 +13,8 @@ import {
   FileText,
   Github,
   Home,
+  Monitor,
+  Moon,
   Network,
   PlugZap,
   Play,
@@ -21,10 +23,12 @@ import {
   Trash2,
   Search,
   ShieldCheck,
+  Sun,
   WrapText,
   X,
   Zap,
 } from 'lucide-react'
+import { type ThemePreference, useTheme } from './theme'
 
 type CurlRequest = {
   url: string
@@ -304,6 +308,73 @@ async function executeCurl(curl: string, mode: ExecutionMode): Promise<ResponseR
   }
 }
 
+const THEME_OPTIONS: Array<{ value: ThemePreference, label: string, icon: typeof Sun }> = [
+  { value: 'system', label: 'System', icon: Monitor },
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+]
+
+function ThemeMenu({ preference, resolvedTheme, onChange }: {
+  preference: ThemePreference
+  resolvedTheme: 'light' | 'dark'
+  onChange: (preference: ThemePreference) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const selected = THEME_OPTIONS.find((option) => option.value === preference) ?? THEME_OPTIONS[0]
+  const SelectedIcon = selected.icon
+
+  useEffect(() => {
+    if (!open) return
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setOpen(false)
+      triggerRef.current?.focus()
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [open])
+
+  return <div className="theme-menu" ref={containerRef}>
+    <button
+      ref={triggerRef}
+      className="theme-trigger"
+      aria-label={`Theme: ${selected.label}`}
+      aria-haspopup="menu"
+      aria-expanded={open}
+      title={`Theme: ${selected.label}`}
+      onClick={() => setOpen((current) => !current)}
+    >
+      <SelectedIcon size={15} />
+    </button>
+    {open && <div className="theme-popover" role="radiogroup" aria-label="Choose theme">
+      {THEME_OPTIONS.map((option) => {
+        const Icon = option.icon
+        const active = preference === option.value
+        return <button
+          key={option.value}
+          role="radio"
+          aria-checked={active}
+          className={active ? 'active' : ''}
+          onClick={() => { onChange(option.value); setOpen(false); window.requestAnimationFrame(() => triggerRef.current?.focus()) }}
+        >
+          <Icon size={14} />
+          <span>{option.label}{option.value === 'system' && <small>Currently {resolvedTheme}</small>}</span>
+          {active && <Check size={13} />}
+        </button>
+      })}
+    </div>}
+  </div>
+}
+
 function ExecutionModeControl({ mode, onChange }: { mode: ExecutionMode, onChange: (mode: ExecutionMode) => void }) {
   return <div className="execution-mode" role="group" aria-label="Request execution mode">
     <button className={mode === 'browser' ? 'active' : ''} onClick={() => onChange('browser')} title="Send directly from this browser">Browser</button>
@@ -393,7 +464,7 @@ function ResponsePreview({
   </>
 }
 
-function WorkspacePage() {
+function WorkspacePage({ theme }: { theme: ReturnType<typeof useTheme> }) {
   const [tabs, setTabs] = useState<WorkspaceTab[]>(() => [createWorkspaceTab(1)])
   const [activeId, setActiveId] = useState(() => tabs[0].id)
   const [executionMode, setExecutionMode] = useState<ExecutionMode>(() => getAgentToken() ? 'agent' : 'browser')
@@ -487,7 +558,7 @@ function WorkspacePage() {
     <header className="workspace-topbar">
       <a className="brand" href="/" aria-label="CurlLens home"><span className="brand-mark"><Braces size={19} strokeWidth={2.4} /></span><span>Curl<span>Lens</span></span></a>
       <div className="workspace-title"><span>Workspace</span><i />{tabs.length} {tabs.length === 1 ? 'request' : 'requests'}</div>
-      <div className="workspace-nav"><a href="/"><Home size={14} /> Home</a><a href="https://buymeacoffee.com/nolann25" target="_blank" rel="noreferrer">Buy me a coffee</a><a href="https://github.com/ailuvu-art/curl-to-formater-json" target="_blank" rel="noreferrer" aria-label="GitHub repository"><Github size={15} /></a></div>
+      <div className="workspace-nav"><a href="/"><Home size={14} /> Home</a><a href="https://buymeacoffee.com/nolann25" target="_blank" rel="noreferrer">Buy me a coffee</a><a href="https://github.com/ailuvu-art/curl-to-formater-json" target="_blank" rel="noreferrer" aria-label="GitHub repository"><Github size={15} /></a><ThemeMenu preference={theme.preference} resolvedTheme={theme.resolvedTheme} onChange={theme.setPreference} /></div>
     </header>
 
     <div className="request-tabs-bar">
@@ -567,7 +638,7 @@ function WorkspacePage() {
   </Box>
 }
 
-function LandingPage() {
+function LandingPage({ theme }: { theme: ReturnType<typeof useTheme> }) {
   const [curl, setCurl] = useState(EXAMPLE_CURL)
   const [response, setResponse] = useState<ResponseState>(null)
   const [error, setError] = useState('')
@@ -645,6 +716,7 @@ function LandingPage() {
           <a href="#cors-guide">CORS help</a>
           <a href="#faq">FAQ</a>
           <a className="github-link" href="https://github.com/ailuvu-art/curl-to-formater-json" target="_blank" rel="noreferrer"><Github size={16} /> GitHub</a>
+          <ThemeMenu preference={theme.preference} resolvedTheme={theme.resolvedTheme} onChange={theme.setPreference} />
         </nav>
       </header>
 
@@ -862,7 +934,8 @@ function LandingPage() {
 }
 
 function App() {
-  return window.location.pathname.startsWith('/workspace') ? <WorkspacePage /> : <LandingPage />
+  const theme = useTheme()
+  return window.location.pathname.startsWith('/workspace') ? <WorkspacePage theme={theme} /> : <LandingPage theme={theme} />
 }
 
 export default App
