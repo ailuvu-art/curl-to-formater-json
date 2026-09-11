@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Button, Textarea } from '@chakra-ui/react'
 import {
+  ArrowDown,
+  ArrowUp,
   Braces,
+  CaseSensitive,
   Check,
   ChevronDown,
   ChevronRight,
@@ -29,6 +32,14 @@ import {
   Zap,
 } from 'lucide-react'
 import { type ThemePreference, useTheme } from './theme'
+import {
+  childJsonPointer,
+  DEFAULT_SEARCH_OPTIONS,
+  findTextMatches,
+  primitiveSearchText,
+  type SearchOptions,
+  type TextMatch,
+} from './responseSearch'
 
 type CurlRequest = {
   url: string
@@ -67,6 +78,12 @@ type AgentExecutionResponse = {
   error?: string
 }
 
+type ResponseSearchState = SearchOptions & {
+  open: boolean
+  query: string
+  activeIndex: number
+}
+
 type WorkspaceTab = {
   id: string
   name: string
@@ -77,6 +94,7 @@ type WorkspaceTab = {
   loading: boolean
   viewMode: ViewMode
   collapsedPaths: string[]
+  search: ResponseSearchState
 }
 
 const EXAMPLE_CURL = `curl 'https://jsonplaceholder.typicode.com/users/1' \\
@@ -159,34 +177,105 @@ function parseCurl(command: string): CurlRequest {
 
 type ViewMode = 'tree' | 'code' | 'text'
 
+type TreeSearchIndex = {
+  byTarget: Map<string, TextMatch[]>
+  ancestorPaths: Map<number, string[]>
+  count: number
+  error: string
+}
+
 type TreeNodeProps = {
   value: unknown
   name?: string
   path: string
+  parentIsArray?: boolean
   depth?: number
   collapsedPaths: Set<string>
   onToggle: (path: string) => void
+  searchIndex: TreeSearchIndex
+  activeMatchId: number
 }
 
-function PrimitiveValue({ value }: { value: unknown }) {
-  if (value === null) return <span className="json-null">null</span>
-  if (typeof value === 'string') return <span className="json-string">&quot;{value}&quot;</span>
-  if (typeof value === 'number') return <span className="json-number">{value}</span>
-  if (typeof value === 'boolean') return <span className="json-boolean">{String(value)}</span>
-  return <span className="json-null">undefined</span>
+function createSearchState(): ResponseSearchState {
+  return { open: false, query: '', activeIndex: 0, ...DEFAULT_SEARCH_OPTIONS }
 }
 
-function TreeNode({ value, name, path, depth = 0, collapsedPaths, onToggle }: TreeNodeProps) {
+function renderHighlightedText(text: string, matches: TextMatch[], activeMatchId: number, offset = 0) {
+  if (!matches.length) return text
+  const parts: Array<string | JSX.Element> = []
+  let cursor = 0
+  for (const match of matches) {
+    const start = Math.max(0, match.start - offset)
+    const end = Math.min(text.length, match.end - offset)
+    if (end < 0 || start > text.length || end < start) continue
+    if (start > cursor) parts.push(text.slice(cursor, start))
+    parts.push(<mark
+      key={match.id}
+      className={`search-match ${match.id === activeMatchId ? 'search-match-current' : ''}`}
+      data-search-match-id={match.id}
+    >{text.slice(start, end)}</mark>)
+    cursor = Math.max(cursor, end)
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor))
+  return parts
+}
+
+function matchesInRange(matches: TextMatch[], start: number, end: number) {
+  return matches.filter((match) => match.start < end && match.end > start)
+}
+
+function buildTreeSearchIndex(value: unknown, query: string, options: SearchOptions): TreeSearchIndex {
+  const byTarget = new Map<string, TextMatch[]>()
+  const ancestorPaths = new Map<number, string[]>()
+  let count = 0
+  let error = ''
+
+  function addTarget(target: string, text: string, ancestors: string[]) {
+    const result = findTextMatches(text, query, options, count)
+    if (result.error) error = result.error
+    if (result.matches.length) {
+      byTarget.set(target, result.matches)
+      result.matches.forEach((match) => ancestorPaths.set(match.id, ancestors))
+      count += result.matches.length
+    }
+  }
+
+  function visit(current: unknown, path: string, ancestors: string[]) {
+    if (current === null || typeof current !== 'object') return
+    const nextAncestors = [...ancestors, path]
+    const isArray = Array.isArray(current)
+    Object.entries(current as Record<string, unknown>).forEach(([key, child]) => {
+      const childPath = childJsonPointer(path, key)
+      if (!isArray) addTarget(`${childPath}:key`, key, nextAncestors)
+      if (child !== null && typeof child === 'object') visit(child, childPath, nextAncestors)
+      else addTarget(`${childPath}:value`, primitiveSearchText(child), nextAncestors)
+    })
+  }
+
+  if (value !== null && typeof value === 'object') visit(value, '$', [])
+  else addTarget('$:value', primitiveSearchText(value), [])
+  return { byTarget, ancestorPaths, count, error }
+}
+
+function HighlightedPrimitive({ value, matches, activeMatchId }: { value: unknown, matches: TextMatch[], activeMatchId: number }) {
+  const text = primitiveSearchText(value)
+  const className = value === null ? 'json-null' : typeof value === 'string' ? 'json-string' : typeof value === 'number' ? 'json-number' : 'json-boolean'
+  return <span className={className}>{typeof value === 'string' && '"'}{renderHighlightedText(text, matches, activeMatchId)}{typeof value === 'string' && '"'}</span>
+}
+
+function TreeNode({ value, name, path, parentIsArray = false, depth = 0, collapsedPaths, onToggle, searchIndex, activeMatchId }: TreeNodeProps) {
   const isContainer = value !== null && typeof value === 'object'
   const isArray = Array.isArray(value)
   const entries = isContainer ? Object.entries(value as Record<string, unknown>) : []
   const collapsed = collapsedPaths.has(path)
-  const label = name === undefined ? null : <span className="tree-key">{isArray ? name : `\"${name}\"`}</span>
+  const keyMatches = searchIndex.byTarget.get(`${path}:key`) ?? []
+  const label = name === undefined ? null : <span className="tree-key">{parentIsArray ? name : <>"{renderHighlightedText(name, keyMatches, activeMatchId)}"</>}</span>
 
   if (!isContainer) {
+    const valueMatches = searchIndex.byTarget.get(`${path}:value`) ?? []
     return (
       <div className="tree-row" style={{ paddingLeft: `${depth * 19 + 8}px` }}>
-        <span className="tree-spacer" />{label}{label && <span className="tree-colon">:</span>} <PrimitiveValue value={value} />
+        <span className="tree-spacer" />{label}{label && <span className="tree-colon">:</span>} <HighlightedPrimitive value={value} matches={valueMatches} activeMatchId={activeMatchId} />
       </div>
     )
   }
@@ -207,17 +296,10 @@ function TreeNode({ value, name, path, depth = 0, collapsedPaths, onToggle }: Tr
         {collapsed && <span className="tree-bracket">…{closing}</span>}
       </div>
       {!collapsed && <>
-        {entries.map(([key, child]) => (
-          <TreeNode
-            key={`${path}.${key}`}
-            value={child}
-            name={isArray ? key : key}
-            path={`${path}.${key}`}
-            depth={depth + 1}
-            collapsedPaths={collapsedPaths}
-            onToggle={onToggle}
-          />
-        ))}
+        {entries.map(([key, child]) => {
+          const childPath = childJsonPointer(path, key)
+          return <TreeNode key={childPath} value={child} name={key} path={childPath} parentIsArray={isArray} depth={depth + 1} collapsedPaths={collapsedPaths} onToggle={onToggle} searchIndex={searchIndex} activeMatchId={activeMatchId} />
+        })}
         <div className="tree-row tree-closing" style={{ paddingLeft: `${depth * 19 + 27}px` }}>{closing}</div>
       </>}
     </div>
@@ -226,24 +308,27 @@ function TreeNode({ value, name, path, depth = 0, collapsedPaths, onToggle }: Tr
 
 function collectContainerPaths(value: unknown, path = '$'): string[] {
   if (value === null || typeof value !== 'object') return []
-  return [path, ...Object.entries(value as Record<string, unknown>).flatMap(([key, child]) => collectContainerPaths(child, `${path}.${key}`))]
+  return [path, ...Object.entries(value as Record<string, unknown>).flatMap(([key, child]) => collectContainerPaths(child, childJsonPointer(path, key)))]
 }
 
-function syntaxHighlight(json: string) {
+function syntaxHighlight(json: string, matches: TextMatch[] = [], activeMatchId = -1) {
   const tokenPattern = /("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"\s*:)|("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*")|\b(true|false)\b|\b(null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g
   const parts: Array<string | JSX.Element> = []
   let cursor = 0
   let match: RegExpExecArray | null
-  let index = 0
+
+  function addSegment(text: string, start: number, className?: string) {
+    const content = renderHighlightedText(text, matchesInRange(matches, start, start + text.length), activeMatchId, start)
+    parts.push(className ? <span className={className} key={start}>{content}</span> : <span key={start}>{content}</span>)
+  }
 
   while ((match = tokenPattern.exec(json)) !== null) {
-    if (match.index > cursor) parts.push(json.slice(cursor, match.index))
-    const token = match[0]
+    if (match.index > cursor) addSegment(json.slice(cursor, match.index), cursor)
     const className = match[1] ? 'json-key' : match[2] ? 'json-string' : match[3] ? 'json-boolean' : match[4] ? 'json-null' : 'json-number'
-    parts.push(<span className={className} key={`${match.index}-${index++}`}>{token}</span>)
-    cursor = match.index + token.length
+    addSegment(match[0], match.index, className)
+    cursor = match.index + match[0].length
   }
-  if (cursor < json.length) parts.push(json.slice(cursor))
+  if (cursor < json.length) addSegment(json.slice(cursor), cursor)
   return parts
 }
 
@@ -258,6 +343,7 @@ function createWorkspaceTab(index: number): WorkspaceTab {
     loading: false,
     viewMode: 'tree',
     collapsedPaths: [],
+    search: createSearchState(),
   }
 }
 
@@ -414,24 +500,95 @@ function AgentSetup({ onConnected }: { onConnected: (status: AgentStatus) => voi
   </div>
 }
 
-function ResponsePreview({
-  response,
-  viewMode,
-  collapsedPaths,
-  onViewModeChange,
-  onCollapsedPathsChange,
-}: {
+function ResponseSearchBar({ search, count, error, onChange, onClose, onNavigate }: {
+  search: ResponseSearchState
+  count: number
+  error: string
+  onChange: (changes: Partial<ResponseSearchState>) => void
+  onClose: () => void
+  onNavigate: (direction: 1 | -1) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { inputRef.current?.focus() }, [])
+  const position = count ? (search.activeIndex % count) + 1 : 0
+  const status = error ? 'Invalid expression' : search.query ? `${position} / ${count}` : ''
+
+  return <div className={`search-bar response-search-bar ${error ? 'search-error' : ''}`} role="search">
+    <Search size={15} aria-hidden="true" />
+    <label className="sr-only" htmlFor="response-search-input">Find in response</label>
+    <input
+      ref={inputRef}
+      id="response-search-input"
+      placeholder="Find key or value…"
+      value={search.query}
+      onChange={(event) => onChange({ query: event.target.value, activeIndex: 0 })}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') { event.preventDefault(); onNavigate(event.shiftKey ? -1 : 1) }
+        else if (event.key === 'Escape') { event.preventDefault(); onClose() }
+      }}
+      aria-invalid={Boolean(error)}
+      aria-describedby="response-search-status"
+      spellCheck={false}
+    />
+    <span id="response-search-status" className="search-count" aria-live="polite" title={error || undefined}>{status}</span>
+    <div className="search-navigation">
+      <button type="button" aria-label="Previous match" title="Previous match (Shift+Enter)" disabled={!count || Boolean(error)} onClick={() => onNavigate(-1)}><ArrowUp size={14} /></button>
+      <button type="button" aria-label="Next match" title="Next match (Enter)" disabled={!count || Boolean(error)} onClick={() => onNavigate(1)}><ArrowDown size={14} /></button>
+    </div>
+    <div className="search-options" role="group" aria-label="Search options">
+      <button type="button" className={search.matchCase ? 'active' : ''} aria-pressed={search.matchCase} aria-label="Match case" title="Match Case" onClick={() => onChange({ matchCase: !search.matchCase, activeIndex: 0 })}><CaseSensitive size={15} /></button>
+      <button type="button" className={search.wholeWord ? 'active' : ''} aria-pressed={search.wholeWord} aria-label="Match whole word" title="Match Whole Word" onClick={() => onChange({ wholeWord: !search.wholeWord, activeIndex: 0 })}>W</button>
+      <button type="button" className={search.useRegex ? 'active' : ''} aria-pressed={search.useRegex} aria-label="Use regular expression" title="Use Regular Expression" onClick={() => onChange({ useRegex: !search.useRegex, activeIndex: 0 })}>.*</button>
+    </div>
+    <button type="button" className="search-close" aria-label="Close search" title="Close search (Escape)" onClick={onClose}><X size={14} /></button>
+  </div>
+}
+
+function ResponsePreview({ response, viewMode, collapsedPaths, search, onViewModeChange, onCollapsedPathsChange, onSearchChange }: {
   response: ResponseResult
   viewMode: ViewMode
   collapsedPaths: string[]
+  search: ResponseSearchState
   onViewModeChange: (mode: ViewMode) => void
   onCollapsedPathsChange: (paths: string[]) => void
+  onSearchChange: (search: ResponseSearchState) => void
 }) {
-  const formatted = typeof response.data === 'string' ? response.data : JSON.stringify(response.data, null, 2)
+  const formatted = useMemo(() => typeof response.data === 'string' ? response.data : JSON.stringify(response.data, null, 2), [response.data])
   const lineCount = formatted ? formatted.split('\n').length : 0
-  const containerPaths = collectContainerPaths(response.data)
+  const containerPaths = useMemo(() => collectContainerPaths(response.data), [response.data])
   const collapsedSet = new Set(collapsedPaths)
   const allCollapsed = containerPaths.length > 0 && containerPaths.every((path) => collapsedSet.has(path))
+  const options = useMemo(() => ({ matchCase: search.matchCase, wholeWord: search.wholeWord, useRegex: search.useRegex }), [search.matchCase, search.wholeWord, search.useRegex])
+  const treeSearch = useMemo(() => buildTreeSearchIndex(response.data, search.open ? search.query : '', options), [response.data, search.open, search.query, options])
+  const searchableText = viewMode === 'text' ? response.raw : formatted
+  const textSearch = useMemo(() => findTextMatches(searchableText, search.open ? search.query : '', options), [searchableText, search.open, search.query, options])
+  const count = viewMode === 'tree' ? treeSearch.count : textSearch.matches.length
+  const error = viewMode === 'tree' ? treeSearch.error : textSearch.error
+  const activeIndex = count ? Math.min(search.activeIndex, count - 1) : 0
+  const activeMatchId = count ? activeIndex : -1
+  const viewerRef = useRef<HTMLDivElement>(null)
+  const onCollapsedPathsChangeRef = useRef(onCollapsedPathsChange)
+
+  useEffect(() => { onCollapsedPathsChangeRef.current = onCollapsedPathsChange }, [onCollapsedPathsChange])
+
+  useEffect(() => {
+    if (!search.open || activeMatchId < 0) return
+    if (viewMode === 'tree') {
+      const ancestors = treeSearch.ancestorPaths.get(activeMatchId) ?? []
+      const next = collapsedPaths.filter((path) => !ancestors.includes(path))
+      if (next.length !== collapsedPaths.length) { onCollapsedPathsChangeRef.current(next); return }
+    }
+    window.requestAnimationFrame(() => viewerRef.current?.querySelector(`[data-search-match-id="${activeMatchId}"]`)?.scrollIntoView({ block: 'center', inline: 'nearest' }))
+  }, [activeMatchId, search.open, viewMode, treeSearch, collapsedPaths])
+
+  function updateSearch(changes: Partial<ResponseSearchState>) {
+    onSearchChange({ ...search, ...changes })
+  }
+
+  function navigate(direction: 1 | -1) {
+    if (!count || error) return
+    updateSearch({ activeIndex: (activeIndex + direction + count) % count })
+  }
 
   function togglePath(path: string) {
     const next = new Set(collapsedSet)
@@ -441,6 +598,7 @@ function ResponsePreview({
   }
 
   return <>
+    {search.open && <ResponseSearchBar search={{ ...search, activeIndex }} count={count} error={error} onChange={updateSearch} onClose={() => updateSearch({ open: false, query: '', activeIndex: 0 })} onNavigate={navigate} />}
     <div className="response-meta workspace-response-meta">
       <span className={response.status < 400 ? 'status-ok' : 'status-bad'}><i /> {response.status} {response.statusText}</span>
       <span><Clock3 size={13} /> {response.duration} ms</span>
@@ -450,17 +608,22 @@ function ResponsePreview({
     </div>
     <div className="viewer-toolbar">
       <div className="view-tabs" role="tablist" aria-label="Response view mode">
-        <button role="tab" aria-selected={viewMode === 'tree'} className={viewMode === 'tree' ? 'active' : ''} onClick={() => onViewModeChange('tree')}><Network size={13} /> Tree</button>
-        <button role="tab" aria-selected={viewMode === 'code'} className={viewMode === 'code' ? 'active' : ''} onClick={() => onViewModeChange('code')}><Code2 size={13} /> Code</button>
-        <button role="tab" aria-selected={viewMode === 'text'} className={viewMode === 'text' ? 'active' : ''} onClick={() => onViewModeChange('text')}><FileText size={13} /> Text</button>
+        <button role="tab" aria-selected={viewMode === 'tree'} className={viewMode === 'tree' ? 'active' : ''} onClick={() => { onViewModeChange('tree'); updateSearch({ activeIndex: 0 }) }}><Network size={13} /> Tree</button>
+        <button role="tab" aria-selected={viewMode === 'code'} className={viewMode === 'code' ? 'active' : ''} onClick={() => { onViewModeChange('code'); updateSearch({ activeIndex: 0 }) }}><Code2 size={13} /> Code</button>
+        <button role="tab" aria-selected={viewMode === 'text'} className={viewMode === 'text' ? 'active' : ''} onClick={() => { onViewModeChange('text'); updateSearch({ activeIndex: 0 }) }}><FileText size={13} /> Text</button>
       </div>
-      {viewMode === 'tree' && containerPaths.length > 0 && <button className="collapse-all" onClick={() => onCollapsedPathsChange(allCollapsed ? [] : containerPaths)}>
-        {allCollapsed ? <ChevronsUpDown size={13} /> : <ChevronsDownUp size={13} />}{allCollapsed ? 'Expand all' : 'Collapse all'}
-      </button>}
+      <div className="viewer-actions">
+        <button className={`viewer-search-toggle ${search.open ? 'active' : ''}`} aria-label="Search response" title="Search response" aria-pressed={search.open} onClick={() => updateSearch({ open: !search.open })}><Search size={13} /> Search</button>
+        {viewMode === 'tree' && containerPaths.length > 0 && <button className="collapse-all" onClick={() => onCollapsedPathsChange(allCollapsed ? [] : containerPaths)}>
+          {allCollapsed ? <ChevronsUpDown size={13} /> : <ChevronsDownUp size={13} />}{allCollapsed ? 'Expand all' : 'Collapse all'}
+        </button>}
+      </div>
     </div>
-    {viewMode === 'tree' ? <div className="tree-viewer workspace-tree-viewer"><TreeNode value={response.data} path="$" collapsedPaths={collapsedSet} onToggle={togglePath} /></div>
-      : viewMode === 'code' ? <div className="json-viewer workspace-json-viewer"><div className="line-numbers">{Array.from({ length: lineCount }, (_, i) => <span key={i}>{i + 1}</span>)}</div><pre>{syntaxHighlight(formatted)}</pre></div>
-        : <pre className="text-viewer workspace-text-viewer">{response.raw}</pre>}
+    <div ref={viewerRef} className="response-viewer-content">
+      {viewMode === 'tree' ? <div className="tree-viewer workspace-tree-viewer"><TreeNode value={response.data} path="$" collapsedPaths={collapsedSet} onToggle={togglePath} searchIndex={treeSearch} activeMatchId={activeMatchId} /></div>
+        : viewMode === 'code' ? <div className="json-viewer workspace-json-viewer"><div className="line-numbers">{Array.from({ length: lineCount }, (_, i) => <span key={i}>{i + 1}</span>)}</div><pre>{syntaxHighlight(formatted, textSearch.matches, activeMatchId)}</pre></div>
+          : <pre className="text-viewer workspace-text-viewer">{renderHighlightedText(response.raw, textSearch.matches, activeMatchId)}</pre>}
+    </div>
   </>
 }
 
@@ -537,7 +700,7 @@ function WorkspacePage({ theme }: { theme: ReturnType<typeof useTheme> }) {
   }
 
   async function runTab(tab: WorkspaceTab) {
-    updateTab(tab.id, { loading: true, error: '', response: null, collapsedPaths: [] })
+    updateTab(tab.id, { loading: true, error: '', response: null, collapsedPaths: [], search: { ...tab.search, open: false, query: '', activeIndex: 0 } })
     try {
       const response = await executeCurl(tab.curl, executionMode)
       let hostname = ''
@@ -631,7 +794,7 @@ function WorkspacePage({ theme }: { theme: ReturnType<typeof useTheme> }) {
         </div>
         {activeTab.error ? <div className="workspace-empty error-state"><span className="state-icon"><X size={22} /></span><h3>Request failed</h3><p>{activeTab.error}</p></div>
           : activeTab.loading ? <div className="workspace-empty"><span className="large-spinner" /><h3>Fetching response</h3><p>Waiting for the API to respond…</p></div>
-            : activeTab.response ? <ResponsePreview response={activeTab.response} viewMode={activeTab.viewMode} collapsedPaths={activeTab.collapsedPaths} onViewModeChange={(viewMode) => updateTab(activeTab.id, { viewMode })} onCollapsedPathsChange={(collapsedPaths) => updateTab(activeTab.id, { collapsedPaths })} />
+            : activeTab.response ? <ResponsePreview response={activeTab.response} viewMode={activeTab.viewMode} collapsedPaths={activeTab.collapsedPaths} search={activeTab.search} onViewModeChange={(viewMode) => updateTab(activeTab.id, { viewMode })} onCollapsedPathsChange={(collapsedPaths) => updateTab(activeTab.id, { collapsedPaths })} onSearchChange={(search) => updateTab(activeTab.id, { search })} />
               : <div className="workspace-empty"><span className="state-icon"><Network size={23} /></span><h3>No response yet</h3><p>Paste a cURL command and send the request to inspect its JSON response.</p></div>}
       </section>
     </main>
@@ -644,10 +807,9 @@ function LandingPage({ theme }: { theme: ReturnType<typeof useTheme> }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState<ResponseSearchState>(createSearchState)
   const [viewMode, setViewMode] = useState<ViewMode>('tree')
-  const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set())
+  const [collapsedPaths, setCollapsedPaths] = useState<string[]>([])
   const [executionMode, setExecutionMode] = useState<ExecutionMode>(() => getAgentToken() ? 'agent' : 'browser')
   const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null)
 
@@ -660,14 +822,12 @@ function LandingPage({ theme }: { theme: ReturnType<typeof useTheme> }) {
     if (!response) return ''
     return typeof response.data === 'string' ? response.data : JSON.stringify(response.data, null, 2)
   }, [response])
-  const containerPaths = useMemo(() => response ? collectContainerPaths(response.data) : [], [response])
-  const allCollapsed = containerPaths.length > 0 && containerPaths.every((path) => collapsedPaths.has(path))
-
   async function runRequest() {
     setError('')
     setLoading(true)
     setResponse(null)
-    setCollapsedPaths(new Set())
+    setCollapsedPaths([])
+    setSearch((current) => ({ ...current, open: false, query: '', activeIndex: 0 }))
     try {
       setResponse(await executeCurl(curl, executionMode))
     } catch (caught) {
@@ -686,22 +846,6 @@ function LandingPage({ theme }: { theme: ReturnType<typeof useTheme> }) {
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1600)
   }
-
-  function togglePath(path: string) {
-    setCollapsedPaths((current) => {
-      const next = new Set(current)
-      if (next.has(path)) next.delete(path)
-      else next.add(path)
-      return next
-    })
-  }
-
-  function toggleAllNodes() {
-    setCollapsedPaths(allCollapsed ? new Set() : new Set(containerPaths))
-  }
-
-  const lineCount = formatted ? formatted.split('\n').length : 0
-  const matchCount = search && formatted ? formatted.toLowerCase().split(search.toLowerCase()).length - 1 : 0
 
   return (
     <Box className="app-shell">
@@ -767,22 +911,11 @@ function LandingPage({ theme }: { theme: ReturnType<typeof useTheme> }) {
             <div className="panel-heading response-heading">
               <div><span className="step">02</span><div><h2>Response</h2><p>Formatted JSON output</p></div></div>
               <div className="response-actions">
-                {response && <>
-                  <button title="Search response" className={searchOpen ? 'active' : ''} onClick={() => setSearchOpen(!searchOpen)}><Search size={16} /></button>
-                  <button title="Copy response" onClick={copyResponse}>{copied ? <Check size={16} /> : <Copy size={16} />}</button>
-                </>}
-                <button title="Clear response" onClick={() => { setResponse(null); setError('') }}><RotateCcw size={16} /></button>
+                {response && <button title="Copy response" onClick={copyResponse}>{copied ? <Check size={16} /> : <Copy size={16} />}</button>}
+                <button title="Clear response" onClick={() => { setResponse(null); setError(''); setSearch(createSearchState()) }}><RotateCcw size={16} /></button>
               </div>
             </div>
 
-            {searchOpen && response && (
-              <div className="search-bar">
-                <Search size={15} />
-                <input autoFocus placeholder="Find in response…" value={search} onChange={(e) => setSearch(e.target.value)} />
-                {search && <span>{matchCount} matches</span>}
-                <button onClick={() => { setSearch(''); setSearchOpen(false) }}><X size={14} /></button>
-              </div>
-            )}
 
             {error ? (
               <div className="state-message error-state">
@@ -791,42 +924,7 @@ function LandingPage({ theme }: { theme: ReturnType<typeof useTheme> }) {
                 <a className="error-help-link" href="#cors-guide">Why browsers block some cURL requests</a>
               </div>
             ) : response ? (
-              <>
-                <div className="response-meta">
-                  <span className={response.status < 400 ? 'status-ok' : 'status-bad'}>
-                    <i /> {response.status} {response.statusText}
-                  </span>
-                  <span><Clock3 size={13} /> {response.duration} ms</span>
-                  <span>{response.size < 1024 ? `${response.size} B` : `${(response.size / 1024).toFixed(1)} KB`}</span>
-                  <span className="meta-spacer" />
-                  <span><WrapText size={13} /> {lineCount} lines</span>
-                </div>
-                <div className="viewer-toolbar">
-                  <div className="view-tabs" role="tablist" aria-label="Response view mode">
-                    <button role="tab" aria-selected={viewMode === 'tree'} className={viewMode === 'tree' ? 'active' : ''} onClick={() => setViewMode('tree')}><Network size={13} /> Tree</button>
-                    <button role="tab" aria-selected={viewMode === 'code'} className={viewMode === 'code' ? 'active' : ''} onClick={() => setViewMode('code')}><Code2 size={13} /> Code</button>
-                    <button role="tab" aria-selected={viewMode === 'text'} className={viewMode === 'text' ? 'active' : ''} onClick={() => setViewMode('text')}><FileText size={13} /> Text</button>
-                  </div>
-                  {viewMode === 'tree' && containerPaths.length > 0 && (
-                    <button className="collapse-all" onClick={toggleAllNodes}>
-                      {allCollapsed ? <ChevronsUpDown size={13} /> : <ChevronsDownUp size={13} />}
-                      {allCollapsed ? 'Expand all' : 'Collapse all'}
-                    </button>
-                  )}
-                </div>
-                {viewMode === 'tree' ? (
-                  <div className="tree-viewer">
-                    <TreeNode value={response.data} path="$" collapsedPaths={collapsedPaths} onToggle={togglePath} />
-                  </div>
-                ) : viewMode === 'code' ? (
-                  <div className="json-viewer code-viewer">
-                    <div className="line-numbers">{Array.from({ length: lineCount }, (_, i) => <span key={i}>{i + 1}</span>)}</div>
-                    <pre>{syntaxHighlight(formatted)}</pre>
-                  </div>
-                ) : (
-                  <pre className="text-viewer">{response.raw}</pre>
-                )}
-              </>
+              <ResponsePreview response={response} viewMode={viewMode} collapsedPaths={collapsedPaths} search={search} onViewModeChange={setViewMode} onCollapsedPathsChange={setCollapsedPaths} onSearchChange={setSearch} />
             ) : (
               <div className="state-message empty-state">
                 <span className="state-icon"><Braces size={25} /></span>
