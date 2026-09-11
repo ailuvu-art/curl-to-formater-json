@@ -113,7 +113,11 @@ kbd { font: 500 8px 'JetBrains Mono'; color: #5b681e; padding-left: 6px; border-
 .search-bar input { flex: 1; background: none; border: 0; outline: 0; color: #d9deea; font: 11px 'JetBrains Mono'; }
 .search-bar span { color: #667083; font: 9px 'JetBrains Mono'; }
 .search-bar button { border: 0; background: none; width: 25px; height: 25px; }
-.response-search-bar { min-height: 44px; height: auto; padding: 6px 12px 6px 18px; gap: 8px; }
+.response-search-bar { min-height: 44px; height: auto; padding: 6px 12px 6px 18px; gap: 8px; animation: slideInDown .22s cubic-bezier(.2, .8, .2, 1) both; transform-origin: top center; }
+@keyframes slideInDown {
+  from { opacity: 0; transform: translate3d(0, -12px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
 .response-search-bar input { min-width: 90px; }
 .search-count { min-width: 48px; text-align: right; white-space: nowrap; }
 .search-error .search-count { min-width: 105px; color: #ff7784; }
@@ -431,4 +435,5 @@ footer { min-height: 65px; border-top: 1px solid #1a202a; padding: 0 max(5.5vw, 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { scroll-behavior: auto !important; }
+  .response-search-bar { animation: none; }
 }
